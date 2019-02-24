@@ -270,30 +270,6 @@ class ConcurrentWorkers(object):
         for worker in self.workers:
             worker.close()
 
-class ConcurrentWorkersCappedActionSpace(ConcurrentWorkers):
-    def __init__(self, make_env_f, *args, gpus=get_available_gpus() * 4, input_queue=None, done_queue=None, **kwargs):
-        self.sess = None
-        if not gpus:
-            gpus = ['/cpu:0']
-        with tf.Session() as sess:
-            import gym_tensorflow
-            ref_batch = gym_tensorflow.get_ref_batch(make_env_f, sess, 128, game_max_action_space=4) # reduce action space to [0, 4]
-            ref_batch=ref_batch[:, ...]
-        if input_queue is None and done_queue is None:
-            self.workers = [RLEvalutionWorker(make_env_f, *args, ref_batch=ref_batch, **dict(kwargs, device=gpus[i])) for i in range(len(gpus))]
-            self.model = self.workers[0].model
-            self.steps_counter = sum([w.steps_counter for w in self.workers])
-            self.async_hub = AsyncTaskHub()
-            self.hub = WorkerHub(self.workers, self.async_hub.input_queue, self.async_hub)
-        else:
-            fake_worker = RLEvalutionWorker( * args, ** dict(kwargs, device=gpus[0]))
-            self.model = fake_worker.model
-            self.workers = []
-            self.hub = None
-            self.steps_counter = tf.constant(0)
-            self.async_hub = AsyncTaskHub(input_queue, done_queue)
-
-
 class MTConcurrentWorkers(ConcurrentWorkers):
     def __init__(self, make_env_fs, *args, gpus=get_available_gpus() * 4, **kwargs):
         tlogger.info("=== Calling MTConcurrentWorkers()")
