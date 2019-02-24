@@ -1,4 +1,5 @@
 import gym_tensorflow
+import numpy as np
 
 def itergroups(items, group_size):
     assert group_size >= 1

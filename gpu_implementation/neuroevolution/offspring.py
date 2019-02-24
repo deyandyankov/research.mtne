@@ -1,3 +1,5 @@
+import numpy as np
+
 class Offspring(object):
     def __init__(self, seeds, rewards, ep_len, validation_rewards=[], validation_ep_len=[]):
         self.seeds = seeds

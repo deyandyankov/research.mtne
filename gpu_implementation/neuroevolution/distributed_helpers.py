@@ -1,4 +1,3 @@
-
 import threading
 from queue import Queue
 from multiprocessing.pool import ApplyResult
@@ -16,16 +15,30 @@ class AsyncWorker(object):
 
 class WorkerHub(object):
     def __init__(self, workers, input_queue, done_queue):
+        print("=== Initializing WorkerHub()")
         self.done_buffer = Queue()
         self.workers = workers
-        self.available_workers = Queue()
+#        self.available_workers = Queue()
         self.done_queue = done_queue
         self._cache = {}
         self.input_queue = input_queue
+        self.next_game_type_must_be = 0
 
+#        for w in workers:
+#            for t in w.concurrent_tasks:
+#                self.available_workers.put((w, t))
+
+        self.available_workers_0 = Queue()
         for w in workers:
             for t in w.concurrent_tasks:
-                self.available_workers.put((w, t))
+                if w.game_index == 0:
+                    self.available_workers_0.put((w, t))
+
+        self.available_workers_1 = Queue()
+        for w in workers:
+            for t in w.concurrent_tasks:
+                if w.game_index == 1:
+                    self.available_workers_1.put((w, t))
 
         self.__initialize_handlers()
 
@@ -44,7 +57,12 @@ class WorkerHub(object):
 
     def worker_callback(self, worker, subworker, result):
         worker_task = (worker, subworker)
-        self.available_workers.put(worker_task)
+#        self.available_workers.put(worker_task)
+        if worker.game_index == 0:
+            self.available_workers_0.put(worker_task)
+        if worker.game_index == 1:
+            self.available_workers_1.put(worker_task)
+
         task_id = self._cache[worker_task]
         del self._cache[worker_task]
         self.done_buffer.put((task_id, result))
@@ -53,11 +71,27 @@ class WorkerHub(object):
     def _handle_input(self):
         try:
             while True:
-                worker_task = self.available_workers.get()
+#                worker_task = self.available_workers.get()
+#                if worker_task is None:
+#                    tlogger.info('WorkerHub._handle_input done')
+#                    break
+#                worker, subworker = worker_task
+                if self.next_game_type_must_be == 0:
+#                    print("Getting queue 0")
+                    current_q = self.available_workers_0
+                if self.next_game_type_must_be == 1:
+#                    print("Getting queue 1")
+                    current_q = self.available_workers_1
+
+                worker_task = current_q.get()
                 if worker_task is None:
                     tlogger.info('WorkerHub._handle_input done')
                     break
                 worker, subworker = worker_task
+                if self.next_game_type_must_be == 0:
+                    self.next_game_type_must_be = 1
+                else:
+                    self.next_game_type_must_be = 0
 
                 task = self.input_queue.get()
                 if task is None:
@@ -89,7 +123,10 @@ class WorkerHub(object):
         self._output_handler.start()
 
     def close(self):
-        self.available_workers.put(None)
+#        self.available_workers.put(None)
+        self.available_workers_0.put(None)
+        self.available_workers_1.put(None)
+
         self.input_queue.put(None)
         self.done_buffer.put(None)
 
@@ -132,4 +169,3 @@ class AsyncTaskHub(object):
     def put(self, result):
         job, result=result
         self._cache[job]._set(0, (True, result))
-

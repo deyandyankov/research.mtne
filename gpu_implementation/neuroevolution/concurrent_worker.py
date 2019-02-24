@@ -289,6 +289,7 @@ class MTConcurrentWorkers(ConcurrentWorkers):
                 game_make_env = make_env_fs[game_index]
                 ref_batch = gym_tensorflow.get_ref_batch(game_make_env, sess, 128)
                 ref_batch = ref_batch[:, ...]
+                print("=== Instantiating MTRLEvaluationWorker with game_index={}".format(game_index))
                 worker = MTRLEvalutionWorker(game_index, game_make_env, *args, ref_batch=ref_batch, **dict(kwargs, device=gpus[i]))
                 self.workers.append(worker)
             self.model = self.workers[0].model
