@@ -124,6 +124,42 @@ class RLEvalutionWorker(AsyncWorker):
         self.sample_callback[task_id] = callback
         self.queue.put(task_id)
 
+class MTRLEvalutionWorker(RLEvalutionWorker):
+    def __init__(self, game_index, make_env_f, model, batch_size, device='/cpu:1', ref_batch=None):
+        print("Initialising MTRLEvaluationWorker with make_env_f=%s" % make_env_f)
+        self.game_index = game_index
+        super(MTRLEvalutionWorker, self).__init__(make_env_f, model, batch_size, device, ref_batch)
+
+    def make_net(self, model_constructor, device, ref_batch=None):
+        override_action_space = 4
+        self.model = model_constructor()
+        print("=== make_net with override_action_space={}, self.make_env_f={} and batch_size={}".format(override_action_space, self.make_env_f, self.batch_size))
+        with tf.variable_scope(None, default_name='model'):
+            with tf.device('/cpu:0'):
+                self.env = self.make_env_f(self.batch_size)
+                self.placeholder_indices = tf.placeholder(tf.int32, shape=(None, ))
+                self.placeholder_max_frames = tf.placeholder(tf.int32, shape=(None, ))
+                self.reset_op = self.env.reset(indices=self.placeholder_indices, max_frames=self.placeholder_max_frames)
+
+                with tf.device(device):
+                    self.obs_op = self.env.observation(indices=self.placeholder_indices)
+                    obs = tf.expand_dims(self.obs_op, axis=1)
+                    if override_action_space is not None:
+                        self.action_op = self.model.make_net(obs, override_action_space, indices=self.placeholder_indices, batch_size=self.batch_size, ref_batch=ref_batch)
+                        print(self.action_op)
+                    else:
+                        self.action_op = self.model.make_net(obs, self.env.action_space, indices=self.placeholder_indices, batch_size=self.batch_size, ref_batch=ref_batch)
+                self.model.initialize()
+
+                if self.env.discrete_action:
+                    self.action_op = tf.argmax(self.action_op[:tf.shape(self.placeholder_indices)[0]], axis=-1, output_type=tf.int32)
+                with tf.device(device):
+                    self.rew_op, self.done_op = self.env.step(self.action_op, indices=self.placeholder_indices)
+
+                self.steps_counter = tf.Variable(np.zeros((), dtype=np.int64))
+                self.incr_counter = tf.assign_add(self.steps_counter, tf.cast(tf.reduce_prod(tf.shape(self.placeholder_indices)), dtype=tf.int64))
+
+
 
 class ConcurrentWorkers(object):
     def __init__(self, make_env_f, *args, gpus=get_available_gpus() * 4, input_queue=None, done_queue=None, **kwargs):
@@ -169,7 +205,6 @@ class ConcurrentWorkers(object):
                 tlogger.info('Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes finished: {}/{}'.format(sum([1 if t.ready() else 0 for t in tasks]), len(tasks)))
                 tstart = time.time()
                 last_timesteps = cur_timesteps
-
         while not all([t.ready() for t in tasks]):
             if time.time() - tstart > logging_interval:
                 cur_timesteps = self.sess.run(self.steps_counter)
@@ -193,7 +228,9 @@ class ConcurrentWorkers(object):
                 tasks.append(self.eval_async(*t, max_frames=max_frames))
                 if time.time() - tstart > logging_interval:
                     cur_timesteps = self.sess.run(self.steps_counter)
-                    tlogger.info('Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes finished: {}/{}'.format(sum([1 if task.ready() else 0 for task in tasks]), len(tasks)))
+                    logstr = 'Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes finished: {}/{}'.format(sum([1 if task.ready() else 0 for task in tasks]), len(tasks))
+                    tlogger.info(logstr)
+                    print("=== " + logstr)
                     tstart = time.time()
                     last_timesteps = cur_timesteps
 
@@ -207,7 +244,6 @@ class ConcurrentWorkers(object):
         tlogger.info('Done evaluating {} episodes in {:.2f} seconds'.format(len(tasks), time.time()-tstart_all))
 
         results = [t.get() for t in tasks]
-
         # Group episodes
         results = zip(*[iter(results)] * num_episodes)
 
@@ -217,9 +253,11 @@ class ConcurrentWorkers(object):
             for s in seeds[1:]:
                 assert s == seeds[0]
             l.append((seeds[0], np.array(rews), np.array(length)))
+        print("=== monitor_eval_repetead returns l = {}".format(l))
         return l
 
     def initialize(self, sess):
+        print("=== ConcurrentWorkers, initializing all concurrent workers with session {}".format(sess))
         for worker in self.workers:
             worker.initialize(sess)
         self.sess = sess
@@ -231,3 +269,89 @@ class ConcurrentWorkers(object):
             self.hub.close()
         for worker in self.workers:
             worker.close()
+
+class ConcurrentWorkersCappedActionSpace(ConcurrentWorkers):
+    def __init__(self, make_env_f, *args, gpus=get_available_gpus() * 4, input_queue=None, done_queue=None, **kwargs):
+        self.sess = None
+        if not gpus:
+            gpus = ['/cpu:0']
+        with tf.Session() as sess:
+            import gym_tensorflow
+            ref_batch = gym_tensorflow.get_ref_batch(make_env_f, sess, 128, game_max_action_space=4) # reduce action space to [0, 4]
+            ref_batch=ref_batch[:, ...]
+        if input_queue is None and done_queue is None:
+            self.workers = [RLEvalutionWorker(make_env_f, *args, ref_batch=ref_batch, **dict(kwargs, device=gpus[i])) for i in range(len(gpus))]
+            self.model = self.workers[0].model
+            self.steps_counter = sum([w.steps_counter for w in self.workers])
+            self.async_hub = AsyncTaskHub()
+            self.hub = WorkerHub(self.workers, self.async_hub.input_queue, self.async_hub)
+        else:
+            fake_worker = RLEvalutionWorker( * args, ** dict(kwargs, device=gpus[0]))
+            self.model = fake_worker.model
+            self.workers = []
+            self.hub = None
+            self.steps_counter = tf.constant(0)
+            self.async_hub = AsyncTaskHub(input_queue, done_queue)
+
+
+class MTConcurrentWorkers(ConcurrentWorkers):
+    def __init__(self, make_env_fs, *args, gpus=get_available_gpus() * 4, **kwargs):
+        tlogger.info("=== Calling MTConcurrentWorkers()")
+        self.sess = None
+        if not gpus:
+            gpus = ['/cpu:0']
+        print("GPUS: {}".format(gpus))
+        with tf.Session() as sess:
+            import gym_tensorflow
+            self.workers = []
+            for i in range(len(gpus)):
+                # alternate between games for multi task learning
+                if (i + 1) % 2 == 0:
+                    game_index = 1 # second game
+                else:
+                    game_index = 0 # first game
+                game_make_env = make_env_fs[game_index]
+                ref_batch = gym_tensorflow.get_ref_batch(game_make_env, sess, 128)
+                ref_batch = ref_batch[:, ...]
+                worker = MTRLEvalutionWorker(game_index, game_make_env, *args, ref_batch=ref_batch, **dict(kwargs, device=gpus[i]))
+                self.workers.append(worker)
+            self.model = self.workers[0].model
+            self.steps_counter = sum([w.steps_counter for w in self.workers])
+            self.async_hub = AsyncTaskHub()
+            self.hub = WorkerHub(self.workers, self.async_hub.input_queue, self.async_hub)
+
+    def monitor_eval_repeated(self, it, max_frames, num_episodes):
+        print("=== [MTConcurrentWorkers.monitor_eval_repeated] self.sess = {}".format(self.sess))
+        return super(MTConcurrentWorkers, self).monitor_eval_repeated(it, max_frames, num_episodes)
+
+    def monitor_eval(self, it, max_frames):
+        logging_interval = 5
+        print("=== [MTConcurrentWorkers.monitor_eval] it = {}".format(it))
+        print("=== [MTConcurrentWorkers.monitor_eval] self.sess = {}".format(self.sess))
+        print("=== [MTConcurrentWorkers.monitor_eval] self.steps_counter = {}".format(self.steps_counter))
+        last_timesteps = self.sess.run(self.steps_counter)
+        print("=== [MTConcurrentWorkers.mmonitor_eval] last_timesteps = {}".format(last_timesteps))
+        tstart_all = time.time()
+        tstart = time.time()
+
+        tasks = []
+        for t in it:
+#            print("=== [MTConcurrentWorkers.monitor_eval] tasks appended so far: {}".format(len(tasks)))
+            tasks.append(self.eval_async(*t, max_frames=max_frames))
+            if time.time() - tstart > logging_interval:
+                cur_timesteps = self.sess.run(self.steps_counter)
+                tlogger.info('Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes finished: {}/{}'.format(sum([1 if t.ready() else 0 for t in tasks]), len(tasks)))
+                tstart = time.time()
+                last_timesteps = cur_timesteps
+
+        print("=== [MTConcurrentWorkers.monitor_eval] -- all tasks are ready")
+        while not all([t.ready() for t in tasks]):
+            if time.time() - tstart > logging_interval:
+                cur_timesteps = self.sess.run(self.steps_counter)
+                tlogger.info('Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes:', sum([1 if t.ready() else 0 for t in tasks]))
+                tstart = time.time()
+                last_timesteps = cur_timesteps
+            time.sleep(0.1)
+        tlogger.info('Done evaluating {} episodes in {:.2f} seconds'.format(len(tasks), time.time()-tstart_all))
+
+        return [t.get() for t in tasks]

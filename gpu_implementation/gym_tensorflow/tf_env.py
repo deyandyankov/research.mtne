@@ -21,7 +21,8 @@ import os
 
 import tensorflow as tf
 
-gym_tensorflow_module = tf.load_op_library(os.path.join(os.path.dirname(__file__), 'gym_tensorflow.so'))
+gymtensorflowpath = os.path.join(os.path.dirname(__file__), 'gym_tensorflow.so')
+gym_tensorflow_module = tf.load_op_library(gymtensorflowpath)
 
 
 class TensorFlowEnv(object):
@@ -45,7 +46,7 @@ class PythonEnv(TensorFlowEnv):
         raise NotImplementedError()
 
     def reset(self, indices=None, max_frames=None, name=None):
-        
+
         if indices is None:
             indices = np.arange(self.batch_size)
         with tf.variable_scope(name, default_name='PythonReset'):
@@ -85,7 +86,7 @@ class GymEnv(PythonEnv):
         import gym
         self.env = [gym.make(name) for _ in range(batch_size)]
         self.obs = [None] * batch_size
-        self.is_discrete_action = isinstance( self.env[0].action_space , gym.spaces.Discrete ) 
+        self.is_discrete_action = isinstance( self.env[0].action_space , gym.spaces.Discrete )
         self.batch_size = batch_size
 
     @property
@@ -106,7 +107,7 @@ class GymEnv(PythonEnv):
         return 1000
 
     def _step(self, action, indices):
-        assert self.discrete_action == True 
+        assert self.discrete_action == True
         results = map(lambda i: self.env[indices[i]].step(action[i]), range(len(indices)))
         obs, reward, done, _ = zip(*results)
         for i in range(len(indices)):

@@ -1,5 +1,5 @@
 USE_SDL := 0
-USE_ALE := 0
+USE_ALE := 1
 USE_GPU := 1
 
 DIR := ./
@@ -27,7 +27,8 @@ endif
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
     ifeq ($(USE_ALE),1)
-        FLAGS+= -Wl -rpath=$(ALE)/build
+        FLAGS+= -Wl,-rpath=$(ALE)/build
+#        FLAGS+= -L$(ALE)/build
     endif
 endif
 
