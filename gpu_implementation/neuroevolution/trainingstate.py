@@ -44,24 +44,3 @@ class TrainingState(object):
 
     def sample(self, schedule):
         return schedule.value(iteration=self.it, timesteps_so_far=self.timesteps_so_far)
-
-class MTTrainingState(TrainingState):
-    def __init__(self, exp):
-        self.num_frames = 0
-        self.timesteps_so_far = 0
-        self.time_elapsed = 0
-        self.validation_timesteps_so_far = 0
-        self.it = 0
-        self.mutation_power = make_schedule(exp['mutation_power'])
-        self.exp = exp
-
-        self.theta = None
-        self.optimizer = None
-        self.tslimit = exp['episode_cutoff_mode']
-        self.incr_tslimit_threshold = None
-        self.tslimit_incr_ratio = None
-        self.adaptive_tslimit = False
-
-    def initialize(self, rs, noise, model):
-        print("DEYAN running MTTrainingState.initialize()")
-        super(MTTrainingState, self).initialize(rs, noise, model)

@@ -29,14 +29,13 @@ from shutil import copyfile
 import tensorflow as tf
 import numpy as np
 from neuroevolution.offspring import Offspring
-from neuroevolution.trainingstate import MTTrainingState
+from neuroevolution.trainingstate import TrainingState
 from neuroevolution.tf_util import get_available_gpus, WorkerSession
 from neuroevolution.helper import SharedNoiseTable
 from neuroevolution.concurrent_worker import MTConcurrentWorkers
 import neuroevolution.models
 import tabular_logger as tlogger
 from threading import Lock
-import gym_tensorflow
 from helper_methods import *
 
 def main(**exp):
@@ -52,7 +51,21 @@ def main(**exp):
     def make_env_game1(b):
         return gym_tensorflow.make(game=exp['games'][1], batch_size=b)
 
+    def make_offspring(state):
+        for i in range(exp['population_size'] // 2):
+            idx = noise.sample_index(rs, worker.model.num_params)
+            mutation_power = state.sample(state.mutation_power)
+            pos_theta = worker.model.compute_mutation(noise, state.theta, idx, mutation_power)
+
+            yield (pos_theta, idx)
+            neg_theta = worker.model.compute_mutation(noise, state.theta, idx, -mutation_power)
+            diff = (np.max(np.abs((pos_theta + neg_theta)/2 - state.theta)))
+            assert diff < 1e-5, 'Diff too large: {}'.format(diff)
+
+            yield (neg_theta, idx)
+
     worker = MTConcurrentWorkers([make_env_game0, make_env_game1], Model, batch_size=32)
+
 
     print("=== [mtes] worker.sess = {}".format(worker.sess))
     with WorkerSession(worker) as sess:
@@ -62,7 +75,7 @@ def main(**exp):
         tlogger.info('Start timing')
         tstart = time.time()
 
-        state = MTTrainingState(exp)
+        state = TrainingState(exp)
         state.initialize(rs, noise, worker.model)
 
         tlogger.info('Start training')

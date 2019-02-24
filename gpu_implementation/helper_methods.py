@@ -1,3 +1,5 @@
+import gym_tensorflow
+
 def itergroups(items, group_size):
     assert group_size >= 1
     group = []
@@ -34,21 +36,3 @@ def batched_weighted_sum(weights, vecs, batch_size):
         total += np.dot(np.asarray(batch_weights, dtype=np.float32), np.asarray(batch_vecs, dtype=np.float32))
         num_items_summed += len(batch_weights)
     return total, num_items_summed
-
-def make_env_game0(b):
-    return gym_tensorflow.make(game=exp['games'][0], batch_size=b)
-def make_env_game1(b):
-    return gym_tensorflow.make(game=exp['games'][1], batch_size=b)
-
-def make_offspring(state):
-    for i in range(exp['population_size'] // 2):
-        idx = noise.sample_index(rs, worker.model.num_params)
-        mutation_power = state.sample(state.mutation_power)
-        pos_theta = worker.model.compute_mutation(noise, state.theta, idx, mutation_power)
-
-        yield (pos_theta, idx)
-        neg_theta = worker.model.compute_mutation(noise, state.theta, idx, -mutation_power)
-        diff = (np.max(np.abs((pos_theta + neg_theta)/2 - state.theta)))
-        assert diff < 1e-5, 'Diff too large: {}'.format(diff)
-
-        yield (neg_theta, idx)
