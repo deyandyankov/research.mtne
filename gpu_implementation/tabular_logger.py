@@ -139,7 +139,8 @@ class TabularLogger(object):
     def log_dir(self):
         if self.dir:
             return self.dir
-        self.dir = tempfile.mkdtemp()
+        temp_prefix = 'mtes_' + time.strftime("%Y%m%d_%I%M%S") + '_'
+        self.dir = tempfile.mkdtemp(prefix=temp_prefix)
         return self.dir
 
     # Logging API, forwarded

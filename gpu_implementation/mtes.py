@@ -173,6 +173,7 @@ def main(**exp):
         return gym_tensorflow.make(game=exp['games'][1], batch_size=b)
 
     worker = MTConcurrentWorkers([make_env_game0, make_env_game1], Model, batch_size=32)
+
     print("=== [mtes] worker.sess = {}".format(worker.sess))
     with WorkerSession(worker) as sess:
         print("=== [mtes] worker.sess = {}".format(worker.sess))
