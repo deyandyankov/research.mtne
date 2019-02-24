@@ -125,7 +125,7 @@ class RLEvalutionWorker(AsyncWorker):
         self.queue.put(task_id)
 
 class MTRLEvalutionWorker(RLEvalutionWorker):
-    def __init__(self, game_index, make_env_f, model, batch_size, device='/cpu:1', ref_batch=None):
+    def __init__(self, game_index, make_env_f, model, batch_size, device='/cpu:0', ref_batch=None):
         print("Initialising MTRLEvaluationWorker with make_env_f=%s" % make_env_f)
         self.game_index = game_index
         super(MTRLEvalutionWorker, self).__init__(make_env_f, model, batch_size, device, ref_batch)

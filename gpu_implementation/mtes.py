@@ -30,8 +30,7 @@ import tensorflow as tf
 import numpy as np
 from neuroevolution.tf_util import get_available_gpus, WorkerSession
 from neuroevolution.helper import SharedNoiseTable, make_schedule
-from neuroevolution.concurrent_worker import ConcurrentWorkers
-from neuroevolution.concurrent_worker import MTConcurrentWorkers
+from neuroevolution.concurrent_worker import ConcurrentWorkers, MTConcurrentWorkers
 from neuroevolution.optimizers import SGD, Adam
 import neuroevolution.models
 import tabular_logger as tlogger
@@ -168,7 +167,6 @@ def main(**exp):
 
     def make_env(b):
         return gym_tensorflow.make(game=exp['game'], batch_size=b)
-
     def make_env_game0(b):
         return gym_tensorflow.make(game=exp['games'][0], batch_size=b)
     def make_env_game1(b):
