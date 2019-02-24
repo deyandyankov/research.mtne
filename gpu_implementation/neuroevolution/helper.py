@@ -22,7 +22,8 @@ import threading
 from queue import Queue
 import numpy as np
 import math
-
+import pickle
+import os
 
 class SharedNoiseTable(object):
     def __init__(self):
@@ -33,8 +34,18 @@ class SharedNoiseTable(object):
         self._shared_mem = multiprocessing.Array(ctypes.c_float, count)
         self.noise = np.ctypeslib.as_array(self._shared_mem.get_obj())
         assert self.noise.dtype == np.float32
-        self.noise[:] = np.random.RandomState(seed).randn(count)  # 64-bit to 32-bit conversion here
-        print('Sampled {} bytes'.format(self.noise.size * 4))
+        sharednoisetablefile = "/tmp/sharednoisetable"
+        if os.path.isfile(sharednoisetablefile):
+            print("Loading shared noise from {}".format(sharednoisetablefile))
+            with open(sharednoisetablefile, 'rb') as fh:
+                self.noise[:] = pickle.load(fh)
+        else:
+            self.noise[:] = np.random.RandomState(seed).randn(count)  # 64-bit to 32-bit conversion here
+            print('Sampled {} bytes'.format(self.noise.size * 4))
+            with open(sharednoisetablefile, 'wb') as fh:
+                print("Saving shared noise table to {}".format(sharednoisetablefile))
+                pickle.dump(self.noise, fh)
+
 
     def get(self, i, dim):
         return self.noise[i:i + dim]

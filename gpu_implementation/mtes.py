@@ -165,8 +165,6 @@ def main(**exp):
     Model = neuroevolution.models.__dict__[exp['model']]
     all_tstart = time.time()
 
-    def make_env(b):
-        return gym_tensorflow.make(game=exp['game'], batch_size=b)
     def make_env_game0(b):
         return gym_tensorflow.make(game=exp['games'][0], batch_size=b)
     def make_env_game1(b):
