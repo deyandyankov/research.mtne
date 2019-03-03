@@ -79,7 +79,7 @@ def main(**exp):
         state.initialize(rs, noise, worker.model)
 
         tlogger.info('Start training')
-        _, initial_performance, _ = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
+        game_index, _, initial_performance, _ = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
 
         print("=== past worker.monitor_eval_repeated")
         while True:
@@ -93,8 +93,8 @@ def main(**exp):
             tlogger.info('Evaluating perturbations')
             iterator = iter(worker.monitor_eval(make_offspring(state), max_frames=state.tslimit * 4))
             results = []
-            for pos_seeds, pos_reward, pos_length in iterator:
-                neg_seeds, neg_reward, neg_length = next(iterator)
+            for game_index, pos_seeds, pos_reward, pos_length in iterator:
+                game_index, neg_seeds, neg_reward, neg_length = next(iterator)
                 assert pos_seeds == neg_seeds
                 results.append(Offspring(pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
             state.num_frames += sess.run(worker.steps_counter) - frames_computed_so_far
@@ -143,12 +143,33 @@ def main(**exp):
             time_elapsed_this_iter = time.time() - tstart_iteration
             state.time_elapsed += time_elapsed_this_iter
             tlogger.info('Evaluate elite')
-            _, test_evals, test_timesteps = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
+            #_, test_evals, test_timesteps = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
+            game_index, _, test_evals, test_timesteps = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
             test_timesteps = sum(test_timesteps)
             # Log Results
+            tlogger.record_tabular('TestRewMin', np.min(test_evals))
             tlogger.record_tabular('TestRewMean', np.mean(test_evals))
             tlogger.record_tabular('TestRewMedian', np.median(test_evals))
+            tlogger.record_tabular('TestRewMax', np.max(test_evals))
             tlogger.record_tabular('TestEpCount', len(test_evals))
+
+            game_stats = [[], []]
+            for k, v in enumerate(game_index):
+                game_stats[v].append(test_evals[k])
+
+            tlogger.record_tabular('Game0TestRewMin', np.min(game_stats[0]))
+            tlogger.record_tabular('Game0TestRewMean', np.mean(game_stats[0]))
+            tlogger.record_tabular('Game0TestRewMedian', np.median(game_stats[0]))
+            tlogger.record_tabular('Game0TestRewMax', np.max(game_stats[0]))
+            tlogger.record_tabular('Game0TestEpCount', len(game_stats[0]))
+
+            tlogger.record_tabular('Game1TestRewMin', np.min(game_stats[1]))
+            tlogger.record_tabular('Game1TestRewMean', np.mean(game_stats[1]))
+            tlogger.record_tabular('Game1TestRewMedian', np.median(game_stats[1]))
+            tlogger.record_tabular('Game1TestRewMax', np.max(game_stats[1]))
+            tlogger.record_tabular('Game1TestEpCount', len(game_stats[1]))
+
+
             tlogger.record_tabular('TestEpLenSum', test_timesteps)
             tlogger.record_tabular('InitialRewMax', np.max(initial_performance))
             tlogger.record_tabular('InitialRewMean', np.mean(initial_performance))
@@ -164,6 +185,7 @@ def main(**exp):
             tlogger.record_tabular('TimeElapsedTotal', time.time()-all_tstart)
 
             tlogger.dump_tabular()
+
             fps = state.timesteps_so_far/(time.time() - tstart)
             tlogger.info('Timesteps Per Second: {:.0f}. Elapsed: {:.2f}h ETA {:.2f}h'.format(fps, (time.time() - all_tstart) / 3600, (exp['timesteps'] - state.timesteps_so_far) / fps / 3600))
 
