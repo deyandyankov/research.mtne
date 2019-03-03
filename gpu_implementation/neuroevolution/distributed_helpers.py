@@ -65,7 +65,7 @@ class WorkerHub(object):
 
         task_id = self._cache[worker_task]
         del self._cache[worker_task]
-        self.done_buffer.put((task_id, result))
+        self.done_buffer.put((worker.game_index, task_id, result))
 
     @staticmethod
     def _handle_input(self):
@@ -167,5 +167,9 @@ class AsyncTaskHub(object):
         return result
 
     def put(self, result):
-        job, result=result
-        self._cache[job]._set(0, (True, result))
+        game_index, job, result = result
+        return_result = [game_index]
+        for e in result:
+            return_result.append(e)
+        return_result = tuple(return_result)
+        self._cache[job]._set(0, (True, return_result))
