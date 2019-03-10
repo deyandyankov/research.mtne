@@ -9,12 +9,14 @@ output:
 library(tidyverse)
 library(ggthemes)
 options(scipen=999)
-epath <- "~/repos/deep-neuroevolution/gpu_implementation/analysis/logs/"
+epath <- "~/repos/research.mtne/gpu_implementation/analysis/logs/"
 es_phoenix_not_capped_logfile <- paste0(epath, "es_phoenix_not_capped.log")
 es_phoenix_capped_logfile <- paste0(epath, "es_phoenix_capped.log")
 es_spaceinvaders_not_capped_logfile <- paste0(epath, "es_spaceinvaders_not_capped.log")
 es_spaceinvaders_capped_logfile <- paste0(epath, "es_spaceinvaders_capped.log")
 es_mt_capped_logfile <- paste0(epath, "es_mt_capped.log")
+es_mt_capped_balanced_logfile <- paste0(epath, "es_mt_capped_balanced.log")
+
 get_iteration_var_data <- function(logfile, var) {
   grepstr <- paste0("^.* |  ", var, " .*  |")
   cmd <- paste0("grep '", grepstr, "' ", logfile, " | sed -e 's/^.*  |  //;s/ .*$//'")
@@ -130,12 +132,16 @@ es_spaceinvaders_capped <- get_iteration_data(es_spaceinvaders_capped_logfile) %
 es_mt_capped <- get_iteration_data(es_mt_capped_logfile) %>% 
   mutate(game = "mt", experiment = "capped")
 
+es_mt_capped_balanced <- get_iteration_data(es_mt_capped_balanced_logfile) %>% 
+  mutate(game = "mtb", experiment = "capped_balanced")
+
 experiments <- bind_rows(
   es_phoenix_not_capped,
   es_phoenix_capped,
   es_spaceinvaders_not_capped,
   es_spaceinvaders_capped,
-  es_mt_capped
+  es_mt_capped,
+  es_mt_capped_balanced
 )
 ```
 
@@ -342,4 +348,47 @@ p68 <- ggplot(df68, aes(Iteration, fairplay)) +
   theme_light(base_size = 10) +
   theme(legend.position="none")
 p68
+```
+
+```{r}
+# space invaders
+df691 <- bind_rows(
+  es_spaceinvaders_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "capped"),
+  es_spaceinvaders_not_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "normal"),
+  es_mt_capped %>% select(Iteration, Game0TestRewMean) %>% rename(TestRewMean = Game0TestRewMean) %>% mutate(experiment = "capped multi task"),
+  es_mt_capped_balanced %>% select(Iteration, Game0TestRewMean) %>% rename(TestRewMean = Game0TestRewMean) %>% mutate(experiment = "capped multi task balanced")
+) %>%
+  filter(Iteration <= 200)
+
+p691 <- ggplot(df691, aes(Iteration, TestRewMean, colour = experiment)) +
+  geom_line() +
+  scale_color_manual(values = c("red", "blue", "black", "green"), name= "expeirment") + #, guide = guide_legend(reverse = TRUE))
+  ggtitle("Space Invaders") +
+  ylab("Score") +
+  xlab("Iteration") +
+  # guides(fill=FALSE) +
+  ylim(c(0, 1500)) +
+  theme_light(base_size = 10)
+p691
+```
+
+```{r}
+# phoenix
+df692 <- bind_rows(
+ es_phoenix_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "capped"),
+ es_phoenix_not_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "normal"),
+ es_mt_capped %>% select(Iteration, Game1TestRewMean) %>% rename(TestRewMean = Game1TestRewMean) %>% mutate(experiment = "capped multi task"),
+ es_mt_capped_balanced %>% select(Iteration, Game1TestRewMean) %>% rename(TestRewMean = Game1TestRewMean) %>% mutate(experiment = "capped multi task balanced")
+) %>%
+  filter(Iteration <= 200)
+p692 <- ggplot(df692, aes(Iteration, TestRewMean, colour = experiment)) +
+  geom_line() +
+  scale_color_manual(values = c("red", "blue", "black", "green"), name= "experiment") + #, guide = guide_legend(reverse = TRUE))
+  ggtitle("Phoenix") +
+  ylab("Score") +
+  xlab("Iteration") +
+  # guides(fill=FALSE) +
+  ylim(c(0, 5500)) +
+  theme_light(base_size = 10)
+p692
 ```
