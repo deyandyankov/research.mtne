@@ -1,0 +1,345 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+options(scipen=999)
+epath <- "~/repos/deep-neuroevolution/gpu_implementation/analysis/logs/"
+es_phoenix_not_capped_logfile <- paste0(epath, "es_phoenix_not_capped.log")
+es_phoenix_capped_logfile <- paste0(epath, "es_phoenix_capped.log")
+es_spaceinvaders_not_capped_logfile <- paste0(epath, "es_spaceinvaders_not_capped.log")
+es_spaceinvaders_capped_logfile <- paste0(epath, "es_spaceinvaders_capped.log")
+es_mt_capped_logfile <- paste0(epath, "es_mt_capped.log")
+get_iteration_var_data <- function(logfile, var) {
+  grepstr <- paste0("^.* |  ", var, " .*  |")
+  cmd <- paste0("grep '", grepstr, "' ", logfile, " | sed -e 's/^.*  |  //;s/ .*$//'")
+  vals <- try(system(cmd, intern=TRUE))
+  result <- data.frame(vals = as.numeric(vals))
+  names(result) <- var
+  return(result)
+}
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+get_iteration_data <- function(logfile) {
+  iterationcol <- get_iteration_var_data(logfile, "Iteration")
+  
+  g0TestRewMin <- get_iteration_var_data(logfile, "Game0TestRewMin")
+  g0TestRewMin <- bind_rows(g0TestRewMin, data.frame(Game0TestRewMin = rep(NA, nrow(iterationcol) - nrow(g0TestRewMin))))
+  g0TestRewMean <- get_iteration_var_data(logfile, "Game0TestRewMean")
+  g0TestRewMean <- bind_rows(g0TestRewMean, data.frame(Game0TestRewMean = rep(NA, nrow(iterationcol) - nrow(g0TestRewMean))))
+  g0TestRewMedian <- get_iteration_var_data(logfile, "Game0TestRewMedian")
+  g0TestRewMedian <- bind_rows(g0TestRewMedian, data.frame(Game0TestRewMedian = rep(NA, nrow(iterationcol) - nrow(g0TestRewMedian))))
+  g0TestRewMax <- get_iteration_var_data(logfile, "Game0TestRewMax")
+  g0TestRewMax <- bind_rows(g0TestRewMax, data.frame(Game0TestRewMax = rep(NA, nrow(iterationcol) - nrow(g0TestRewMax))))
+  g0TestRewEpCount <- get_iteration_var_data(logfile, "Game0TestEpCount")
+  g0TestRewEpCount <- bind_rows(g0TestRewEpCount, data.frame(Game0TestEpCount = rep(NA, nrow(iterationcol) - nrow(g0TestRewEpCount))))
+  
+  g1TestRewMin <- get_iteration_var_data(logfile, "Game1TestRewMin")
+  g1TestRewMin <- bind_rows(g1TestRewMin, data.frame(Game1TestRewMin = rep(NA, nrow(iterationcol) - nrow(g1TestRewMin))))
+  g1TestRewMean <- get_iteration_var_data(logfile, "Game1TestRewMean")
+  g1TestRewMean <- bind_rows(g1TestRewMean, data.frame(Game1TestRewMean = rep(NA, nrow(iterationcol) - nrow(g1TestRewMean))))
+  g1TestRewMedian <- get_iteration_var_data(logfile, "Game1TestRewMedian")
+  g1TestRewMedian <- bind_rows(g1TestRewMedian, data.frame(Game1TestRewMedian = rep(NA, nrow(iterationcol) - nrow(g1TestRewMedian))))
+  g1TestRewMax <- get_iteration_var_data(logfile, "Game1TestRewMax")
+  g1TestRewMax <- bind_rows(g1TestRewMax, data.frame(Game1TestRewMax = rep(NA, nrow(iterationcol) - nrow(g1TestRewMax))))
+  g1TestRewEpCount <- get_iteration_var_data(logfile, "Game1TestEpCount")
+  g1TestRewEpCount <- bind_rows(g1TestRewEpCount, data.frame(Game1TestEpCount = rep(NA, nrow(iterationcol) - nrow(g1TestRewEpCount))))
+  
+  result <- bind_cols(
+    get_iteration_var_data(logfile, "Iteration"),
+    get_iteration_var_data(logfile, "MutationPower"),
+    get_iteration_var_data(logfile, "TimestepLimitPerEpisode"),
+    get_iteration_var_data(logfile, "PopulationEpRewMax"),
+    get_iteration_var_data(logfile, "PopulationEpRewMean"),
+    get_iteration_var_data(logfile, "PopulationEpRewMedian"),
+    get_iteration_var_data(logfile, "PopulationEpCount"),
+    get_iteration_var_data(logfile, "PopulationTimesteps"),
+    get_iteration_var_data(logfile, "TestRewMean"),
+    get_iteration_var_data(logfile, "TestRewMedian"),
+    get_iteration_var_data(logfile, "TestEpCount"),
+    get_iteration_var_data(logfile, "TestEpLenSum"),
+    get_iteration_var_data(logfile, "InitialRewMax"),
+    get_iteration_var_data(logfile, "InitialRewMean"),
+    get_iteration_var_data(logfile, "InitialRewMedian"),
+    get_iteration_var_data(logfile, "TimestepsThisIter"),
+    get_iteration_var_data(logfile, "TimestepsPerSecondThisIter"),
+    get_iteration_var_data(logfile, "TimestepsComputed"),
+    get_iteration_var_data(logfile, "TimestepsSoFar"),
+    get_iteration_var_data(logfile, "TimeElapsedThisIter"),
+    get_iteration_var_data(logfile, "TimeElapsedThisIterTotal"),
+    get_iteration_var_data(logfile, "TimeElapsed"),
+    get_iteration_var_data(logfile, "TimeElapsedTotal")
+  ) %>% 
+    bind_cols(
+       g0TestRewMin, g0TestRewMean, g0TestRewMedian, g0TestRewMax, g0TestRewEpCount,
+       g1TestRewMin, g1TestRewMean, g1TestRewMedian, g1TestRewMax, g1TestRewEpCount
+     )
+  return(result)
+}
+
+es_phoenix_not_capped <- get_iteration_data(es_phoenix_not_capped_logfile) %>% 
+  mutate(game = "phoenix", action_space = "normal")
+
+es_phoenix_capped <- get_iteration_data(es_phoenix_capped_logfile) %>% 
+  mutate(game = "phoenix", action_space = "capped")
+
+es_spaceinvaders_not_capped <- get_iteration_data(es_spaceinvaders_not_capped_logfile) %>% 
+  mutate(game = "spaceinvaders", action_space = "normal")
+
+es_spaceinvaders_capped <- get_iteration_data(es_spaceinvaders_capped_logfile) %>% 
+  mutate(game = "spaceinvaders", action_space = "capped")
+
+es_mt_capped <- get_iteration_data(es_mt_capped_logfile) %>% 
+  mutate(game = "mt", experiment = "capped")
+
+experiments <- bind_rows(
+  es_phoenix_not_capped,
+  es_phoenix_capped,
+  es_spaceinvaders_not_capped,
+  es_spaceinvaders_capped,
+  es_mt_capped
+)
+```
+
+```{r}
+df611 <- experiments %>% 
+  filter(game == "spaceinvaders", action_space == "normal") %>% 
+  filter(Iteration <= 200)
+p611 <- ggplot(df611, aes(Iteration, TestRewMean)) +
+  geom_line() +
+  ggtitle("Space Invaders (Experiment #1)") +
+  ylab("Score") +
+  xlab("Iteration") +
+  labs(colour="action space") +
+  ylim(c(0, 5500)) +
+  theme_light(base_size = 10)
+df612 <- experiments %>% 
+  filter(game == "phoenix", action_space == "normal") %>% 
+  filter(Iteration <= 200)
+p612 <- ggplot(df612, aes(Iteration, TestRewMean)) +
+  geom_line() +
+  ggtitle("Phoenix (Experiment #3)") +
+  ylab("Score") +
+  xlab("Iteration") +
+  labs(colour="action space") +
+  ylim(c(0, 5500)) +
+  theme_light(base_size = 10)
+multiplot(p611, p612, cols=2)
+```
+```{r}
+df621 <- experiments %>%
+  filter(game == "spaceinvaders", action_space == "normal") %>%
+  filter(Iteration <= 200) %>%
+  mutate(iterminutes = TimeElapsedThisIter/60)
+p621 <- ggplot(df621, aes(Iteration, iterminutes)) +
+  geom_line() +
+  ggtitle("Space Invaders (Experiment #1)") +
+  ylab("Training time (minutes)") +
+  xlab("Iteration") +
+  labs(colour="action space") +
+  theme_light(base_size = 10) +
+  ylim(c(0, 50))
+df622 <- experiments %>%
+  filter(game == "phoenix", action_space == "normal") %>%
+  filter(Iteration <= 200) %>%
+  mutate(iterminutes = TimeElapsedThisIter/60)
+p622 <- ggplot(df622, aes(Iteration, iterminutes)) +
+  geom_line() +
+  ggtitle("Phoenix (Experiment #3)") +
+  ylab("Training time (minutes)") +
+  xlab("Iteration") +
+  labs(colour="action space") +
+  theme_light(base_size = 10) +
+  ylim(c(0, 50))
+multiplot(p621, p622, cols=2)
+```
+
+```{r}
+df631 <- experiments %>% 
+  filter(game == "spaceinvaders", action_space == "normal") %>% 
+  filter(Iteration <= 200) %>% 
+  mutate(y = TimestepsThisIter/5000)
+p631 <- ggplot(df631, aes(Iteration, y)) +
+  geom_line() +
+  ggtitle("Space Invaders (Experiment #1)") +
+  ylab("Average timesteps per training episode") +
+  xlab("Iteration") +
+  labs(colour="action space") +
+  ylim(c(0, 2000)) +
+  theme_light(base_size = 10)
+df632 <- experiments %>% 
+  filter(game == "phoenix", action_space == "normal") %>% 
+  filter(Iteration <= 200) %>% 
+  mutate(y = TimestepsThisIter/5000)
+p632 <- ggplot(df632, aes(Iteration, y)) +
+  geom_line() +
+  ggtitle("Phoenix (Experiment #3)") +
+  ylab("Average timesteps per training episode") +
+  xlab("Iteration") +
+  labs(colour="action space") +
+  ylim(c(0, 2000)) +
+  theme_light(base_size = 10)
+multiplot(p631, p632, cols=2)
+```
+
+```{r}
+df <- experiments %>% 
+  filter(game == "phoenix", action_space == "normal") %>% 
+  filter(Iteration <= 200)
+p <- ggplot(df, aes(Iteration, TestRewMean)) +
+  geom_line() +
+  ggtitle("Phoenix") +
+  ylab("Score") +
+  xlab("Iteration") +
+  labs(colour="action space") +
+  theme_light(base_size = 8)
+p
+ggsave("/tmp/fig61-2.png", p, width=4, height=3)
+```
+
+
+```{r}
+df641 <- experiments %>%
+  filter(game == "spaceinvaders") %>%
+  filter(Iteration <= 200)
+p641 <- ggplot(df641, aes(Iteration, TestRewMean, colour = action_space)) +
+  geom_line() +
+  scale_color_manual(values = c("red", "black"), name= "action space") + #, guide = guide_legend(reverse = TRUE))
+  ggtitle("Space Invaders (Experiment #1 and #2)") +
+  ylab("Score") +
+  xlab("Iteration") +
+  guides(fill=FALSE) +
+  ylim(c(0, 5500)) +
+  theme_light(base_size = 10) +
+  theme(legend.position="none")
+df642 <- experiments %>%
+  filter(game == "phoenix") %>%
+  filter(Iteration <= 200)
+p642 <- ggplot(df642, aes(Iteration, TestRewMean, colour = action_space)) +
+  geom_line() +
+  scale_color_manual(values = c("red", "black"), name= "action space") + #, guide = guide_legend(reverse = TRUE))
+  ggtitle("Phoenix (Experiment #3 and #4)") +
+  ylab("Score") +
+  xlab("Iteration") +
+  guides(fill=FALSE) +
+  ylim(c(0, 5500)) +
+  theme_light(base_size = 10) +
+  theme(legend.position="none")
+multiplot(p641, p642, cols=2)
+```
+
+```{r}
+df671 <- bind_rows(
+  es_spaceinvaders_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "capped"),
+  es_spaceinvaders_not_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "normal"),
+  es_mt_capped %>% select(Iteration, Game0TestRewMean) %>% rename(TestRewMean = Game0TestRewMean) %>% mutate(experiment = "capped multi task")
+) %>%
+  filter(Iteration <= 200)
+p671 <- ggplot(df671, aes(Iteration, TestRewMean, colour = experiment)) +
+  geom_line() +
+  scale_color_manual(values = c("red", "blue", "black"), name= "expeirment") + #, guide = guide_legend(reverse = TRUE))
+  ggtitle("Space Invaders") +
+  ylab("Score") +
+  xlab("Iteration") +
+  # guides(fill=FALSE) +
+  ylim(c(0, 5500)) +
+  theme_light(base_size = 10) +
+  theme(legend.position="none")
+df672 <- bind_rows(
+ es_phoenix_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "capped"),
+ es_phoenix_not_capped %>% select(Iteration, TestRewMean) %>% mutate(experiment = "normal"),
+ es_mt_capped %>% select(Iteration, Game1TestRewMean) %>% rename(TestRewMean = Game1TestRewMean) %>% mutate(experiment = "capped multi task")
+) %>%
+  filter(Iteration <= 200)
+p672 <- ggplot(df672, aes(Iteration, TestRewMean, colour = experiment)) +
+  geom_line() +
+  scale_color_manual(values = c("red", "blue", "black"), name= "experiment") + #, guide = guide_legend(reverse = TRUE))
+  ggtitle("Phoenix") +
+  ylab("Score") +
+  xlab("Iteration") +
+  # guides(fill=FALSE) +
+  ylim(c(0, 5500)) +
+  theme_light(base_size = 10) +
+  theme(legend.position="none")
+multiplot(p671, p672, cols=2)
+```
+
+```{r}
+df68 <- es_mt_capped %>%
+  filter(Iteration <= 200) %>% 
+  select(Iteration, Game0TestEpCount, Game1TestEpCount)
+p681 <- ggplot(df68, aes(Iteration, Game1TestEpCount, colour="blue")) +
+  geom_line() +
+  scale_color_manual(values=c("blue")) +
+  ggtitle("Space Invaders") +
+  ylab("Test games played") +
+  xlab("Iteration") +
+  # guides(fill=FALSE) +
+  ylim(c(0, 200)) +
+  geom_hline(yintercept=100, color="green") +
+  theme_light(base_size = 10) +
+  theme(legend.position="none")
+p682 <- ggplot(df68, aes(Iteration, Game0TestEpCount, colour="blue")) +
+  geom_line() +
+  scale_color_manual(values=c("blue")) +
+  ggtitle("Phoenix") +
+  ylab("Test games played") +
+  xlab("Iteration") +
+  # guides(fill=FALSE) +
+  ylim(c(0, 200)) +
+  geom_hline(yintercept=100, color="green") +
+  theme_light(base_size = 10) +
+  theme(legend.position="none")
+multiplot(p681, p682, cols=2)
+```
+
+```{r}
+df68 <- es_mt_capped %>% filter(Iteration <= 200) %>% mutate(fairplay = Game1TestEpCount - Game0TestEpCount)
+p68 <- ggplot(df68, aes(Iteration, fairplay)) +
+  geom_line() +
+  geom_hline(yintercept=0, color="green") +
+  ggtitle("Number of Space Invader vs. Phoenix games played during testing phase of each iteration") +
+  ylab("...") +
+  xlab("Iteration") +
+  theme_light(base_size = 10) +
+  theme(legend.position="none")
+p68
+```
