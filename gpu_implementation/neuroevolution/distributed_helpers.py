@@ -65,6 +65,7 @@ class WorkerHub(object):
 
         task_id = self._cache[worker_task]
         del self._cache[worker_task]
+        print("== putting into done buffer: worker.game_index={}, task_id={}, result={}".format(worker.game_index, task_id, result))
         self.done_buffer.put((worker.game_index, task_id, result))
 
     @staticmethod
@@ -111,8 +112,9 @@ class WorkerHub(object):
             while True:
                 result = self.done_buffer.get()
                 if result is None:
-                    tlogger.info('WorkerHub._handle_output done')
-                    break
+                    tlogger.info('RESULT IS NONE: WorkerHub._handle_output done')
+                    continue
+                    #break
                 self.done_queue.put(result)
         except:
             tlogger.exception('WorkerHub._handle_output exception thrown')
