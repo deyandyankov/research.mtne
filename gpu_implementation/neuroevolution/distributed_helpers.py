@@ -175,3 +175,63 @@ class AsyncTaskHub(object):
             return_result.append(e)
         return_result = tuple(return_result)
         self._cache[job]._set(0, (True, return_result))
+
+class MTWorkerHub(WorkerHub):
+    pass
+
+class MTAsyncTaskHub(AsyncTaskHub):
+    pass
+
+class MTAsyncTaskHub2(AsyncTaskHub):
+    def __init__(self, input_queue=None, results_queue=None):
+        print("== Instantiating MTAsyncTaskHub")
+
+        self.next_game_type_must_be_0 = 0
+        if input_queue is None:
+            input_queue = Queue(64)
+
+        self.input_queue = input_queue
+        self._cache = {}
+        self.results_queue_0 = None
+        self.results_queue_1 = None
+        self._output_handler = threading.Thread(
+            target=MTAsyncTaskHub._handle_output,
+            args=(self,)
+        )
+        self._output_handler.daemon = True
+        self._output_handler._state = 0
+        self._output_handler.start()
+
+    @staticmethod
+    def _handle_output(self):
+        try:
+            while True:
+                result_0 = self.results_queue_0.get()
+                result_1 = self.results_queue_1.get()
+                if result_0 is None and result_1 is None:
+                    tlogger.info('AsyncTaskHub._handle_output done')
+                    break
+                if result_0 is not None:
+                    self.put(result_0)
+                if result_1 is not None:
+                    self.put(result_1)
+        except:
+            tlogger.exception('AsyncTaskHub._handle_output exception thrown')
+            raise
+
+    def run_async(self, game_index, task, callback=None, error_callback=None):
+        print(task)
+        result = ApplyResult(self._cache, callback, error_callback)
+        if game_index == 0:
+            self.input_queue_0.put((result._job, task))
+        if game_index == 1:
+            self.input_queue_1.put((result._job, task))
+        return result
+
+    def put(self, result):
+        game_index, job, result = result
+        return_result = [game_index]
+        for e in result:
+            return_result.append(e)
+        return_result = tuple(return_result)
+        self._cache[job]._set(0, (True, return_result))
