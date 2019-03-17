@@ -130,7 +130,7 @@ class RLEvalutionWorkerCappedActionSpace(RLEvalutionWorker):
         super(RLEvalutionWorkerCappedActionSpace, self).__init__(make_env_f, model, batch_size, device, ref_batch)
 
     def make_net(self, model_constructor, device, ref_batch=None):
-        override_action_space = 4
+        override_action_space = None
         self.model = model_constructor()
         print("=== make_net with override_action_space={}, self.make_env_f={} and batch_size={}".format(override_action_space, self.make_env_f, self.batch_size))
         with tf.variable_scope(None, default_name='model'):
@@ -288,7 +288,7 @@ class MTConcurrentWorkers(ConcurrentWorkers):
                 else:
                     game_index = 0 # first game
                 game_make_env = make_env_fs[game_index]
-                ref_batch = gym_tensorflow.get_ref_batch(game_make_env, sess, 128, game_max_action_space=4)
+                ref_batch = gym_tensorflow.get_ref_batch(game_make_env, sess, 128)
                 ref_batch = ref_batch[:, ...]
                 worker = RLEvalutionWorkerCappedActionSpace(game_index, game_make_env, *args, ref_batch=ref_batch, **dict(kwargs, device=gpus[i]))
                 self.workers.append(worker)
