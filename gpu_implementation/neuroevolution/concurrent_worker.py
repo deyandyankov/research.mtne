@@ -254,7 +254,7 @@ class ConcurrentWorkers(object):
             for s in seeds[1:]:
                 assert s == seeds[0]
             l.append((seeds[0], np.array(rews), np.array(length)))
-        print("=== monitor_eval_repetead returns l = {}".format(l))
+        print("=== monitor_eval_repetead (ConcurrentWorkers) returns l = {}".format(l))
         return l
 
     def initialize(self, sess):
@@ -294,8 +294,8 @@ class MTConcurrentWorkers(ConcurrentWorkers):
                 self.workers.append(worker)
             self.model = self.workers[0].model
             self.steps_counter = sum([w.steps_counter for w in self.workers])
-            self.async_hub = MTAsyncTaskHub()
-            self.hub = MTWorkerHub(self.workers, self.async_hub.input_queue, self.async_hub)
+            self.async_hub = AsyncTaskHub()
+            self.hub = WorkerHub(self.workers, self.async_hub.input_queue, self.async_hub)
 
     def eval_async(self, theta, extras, max_frames=None, callback=None, error_callback=None):
         return self.async_hub.run_async((theta, extras, max_frames), callback=callback, error_callback=error_callback)
@@ -313,15 +313,9 @@ class MTConcurrentWorkers(ConcurrentWorkers):
         print("== will be running for num_episodes={}".format(num_episodes))
         tasks = []
         for t in it:
-            game_index = 0
             for _ in range(num_episodes):
                 print("Episode: {}".format(_))
                 tasks.append(self.eval_async(*t, max_frames=max_frames))
-                if game_index == 0:
-                    game_index = 1
-                else:
-                    game_index = 0
-
                 if time.time() - tstart > logging_interval:
                     cur_timesteps = self.sess.run(self.steps_counter)
                     logstr = 'Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes finished: {}/{}'.format(sum([1 if task.ready() else 0 for task in tasks]), len(tasks))
@@ -355,6 +349,7 @@ class MTConcurrentWorkers(ConcurrentWorkers):
             game_index, seeds, rews, length = zip(*evals)
             for s in seeds[1:]:
                 assert s == seeds[0]
-            l.append((game_index, seeds[0], np.array(rews), np.array(length)))
-        print("=== monitor_eval_repetead returns l = {}".format(l))
+            l_tuple = (game_index, seeds[0], np.array(rews), np.array(length))
+            l.append(l_tuple)
+        print("=== monitor_eval_repetead (MTConcurrentWorkers) returns l = {}".format(l))
         return l
