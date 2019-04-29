@@ -303,6 +303,33 @@ class MTConcurrentWorkers(ConcurrentWorkers):
     def eval(self, theta, extras, max_frames=None):
         return self.eval_async(theta, extras, max_frames).get()
 
+    def monitor_eval(self, it, max_frames):
+        logging_interval = 5
+        last_timesteps = self.sess.run(self.steps_counter)
+        tstart_all = time.time()
+        tstart = time.time()
+
+        tasks = []
+        for t in it:
+            tasks.append(self.eval_async(*t, max_frames=max_frames))
+            if time.time() - tstart > logging_interval:
+                cur_timesteps = self.sess.run(self.steps_counter)
+                tlogger.info('Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes finished: {}/{}'.format(sum([1 if t.ready() else 0 for t in tasks]), len(tasks)))
+                tstart = time.time()
+                last_timesteps = cur_timesteps
+        while not all([t.ready() for t in tasks]):
+            if time.time() - tstart > logging_interval:
+                cur_timesteps = self.sess.run(self.steps_counter)
+                tlogger.info('Num timesteps:', cur_timesteps, 'per second:', (cur_timesteps-last_timesteps)//(time.time()-tstart), 'num episodes:', sum([1 if t.ready() else 0 for t in tasks]))
+                tstart = time.time()
+                last_timesteps = cur_timesteps
+            time.sleep(0.1)
+        tlogger.info('Done evaluating {} episodes in {:.2f} seconds'.format(len(tasks), time.time()-tstart_all))
+        result = [t.get() for t in tasks]
+        print(result)
+        return result
+
+
     def monitor_eval_repeated(self, it, max_frames, num_episodes):
         print("== monitor_eval_repeated called from MTConcurrentWorkers()")
         logging_interval = 30
@@ -314,7 +341,7 @@ class MTConcurrentWorkers(ConcurrentWorkers):
         tasks = []
         for t in it:
             for _ in range(num_episodes):
-                print("Episode: {}".format(_))
+#                print("Episode: {}".format(_))
                 tasks.append(self.eval_async(*t, max_frames=max_frames))
                 if time.time() - tstart > logging_interval:
                     cur_timesteps = self.sess.run(self.steps_counter)

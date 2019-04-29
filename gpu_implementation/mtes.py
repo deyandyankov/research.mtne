@@ -25,6 +25,7 @@ import base64
 import pickle
 import tempfile
 import os
+from collections import Counter
 from shutil import copyfile
 import tensorflow as tf
 import numpy as np
@@ -66,7 +67,6 @@ def main(**exp):
 
     worker = MTConcurrentWorkers([make_env_game0, make_env_game1], Model, batch_size=32)
 
-
     print("=== [mtes] worker.sess = {}".format(worker.sess))
     with WorkerSession(worker) as sess:
         print("=== [mtes] worker.sess = {}".format(worker.sess))
@@ -80,6 +80,8 @@ def main(**exp):
 
         tlogger.info('Start training')
         game_index, _, initial_performance, _ = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
+        print(game_index)
+        print("Games played: " + str(Counter(game_index)))
 
         print("=== past worker.monitor_eval_repeated")
         while True:
@@ -96,7 +98,7 @@ def main(**exp):
             for game_index, pos_seeds, pos_reward, pos_length in iterator:
                 game_index, neg_seeds, neg_reward, neg_length = next(iterator)
                 assert pos_seeds == neg_seeds
-                results.append(Offspring(pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
+                results.append(Offspring(game_index, pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
             state.num_frames += sess.run(worker.steps_counter) - frames_computed_so_far
 
             state.it += 1

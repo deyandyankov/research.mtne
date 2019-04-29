@@ -1,7 +1,8 @@
 import numpy as np
 
 class Offspring(object):
-    def __init__(self, seeds, rewards, ep_len, validation_rewards=[], validation_ep_len=[]):
+    def __init__(self, game_index, seeds, rewards, ep_len, validation_rewards=[], validation_ep_len=[]):
+        self.game_index = game_index
         self.seeds = seeds
         self.rewards = rewards
         self.ep_len = ep_len
