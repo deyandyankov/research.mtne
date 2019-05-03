@@ -25,7 +25,6 @@ import base64
 import pickle
 import tempfile
 import os
-from collections import Counter
 from shutil import copyfile
 import tensorflow as tf
 import numpy as np
@@ -67,6 +66,7 @@ def main(**exp):
 
     worker = MTConcurrentWorkers([make_env_game0, make_env_game1], Model, batch_size=32)
 
+
     print("=== [mtes] worker.sess = {}".format(worker.sess))
     with WorkerSession(worker) as sess:
         print("=== [mtes] worker.sess = {}".format(worker.sess))
@@ -75,21 +75,39 @@ def main(**exp):
         tlogger.info('Start timing')
         tstart = time.time()
 
-        state = TrainingState(exp)
-        state.initialize(rs, noise, worker.model)
+        try:
+            load_file = os.path.join(os.getcwd(), 'snapshot.pkl')
+            with open(load_file, 'rb+') as file:
+                state = pickle.load(file)
+            tlogger.info("Loaded iteration {} from {}".format(state.it, load_file))
+        except FileNotFoundError:
+            tlogger.info('Failed to load snapshot')
+            state = TrainingState(exp)
+
+            if 'load_from' in exp:
+                dirname = os.path.join(os.path.dirname(__file__), '..', 'neuroevolution', 'ga_legacy.py')
+                load_from = exp['load_from'].format(**exp)
+                os.system('python {} {} seeds.pkl'.format(dirname, load_from))
+                with open('seeds.pkl', 'rb+') as file:
+                    seeds = pickle.load(file)
+                    state.set_theta(worker.model.compute_weights_from_seeds(noise, seeds))
+                tlogger.info('Loaded initial theta from {}'.format(load_from))
+            else:
+                state.initialize(rs, noise, worker.model)
 
         tlogger.info('Start training')
         game_index, _, initial_performance, _ = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
-        print(game_index)
-        print("Games played: " + str(Counter(game_index)))
 
         print("=== past worker.monitor_eval_repeated")
         while True:
             print("=== next cycle in while loop")
             tstart_iteration = time.time()
-            if state.timesteps_so_far >= exp['timesteps']:
-                tlogger.info('Training terminated after {} timesteps'.format(state.timesteps_so_far))
+
+            # Stop if your reach the max amount of iterations
+            if state.it >= exp['iterations']:
+                tlogger.info('Training terminated after {} iterations'.format(state.it))
                 break
+
             frames_computed_so_far = sess.run(worker.steps_counter)
             print("=== frames_captured_so_far = {}".format(frames_computed_so_far))
             tlogger.info('Evaluating perturbations')
@@ -98,7 +116,7 @@ def main(**exp):
             for game_index, pos_seeds, pos_reward, pos_length in iterator:
                 game_index, neg_seeds, neg_reward, neg_length = next(iterator)
                 assert pos_seeds == neg_seeds
-                results.append(Offspring(game_index, pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
+                results.append(Offspring(pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
             state.num_frames += sess.run(worker.steps_counter) - frames_computed_so_far
 
             state.it += 1
@@ -203,9 +221,40 @@ def main(**exp):
             copyfile(save_file, os.path.join(log_dir, 'snapshot_gen{:04d}.pkl'.format(state.it)))
             tlogger.info("Saved iteration {} to {}".format(state.it, save_file))
 
-            if state.timesteps_so_far >= exp['timesteps']:
-                tlogger.info('Training terminated after {} timesteps'.format(state.timesteps_so_far))
+            # Copy pickle file to "gpu_implementation/pickleAnalysis" folder
+            log_dir_local = os.path.join(os.path.join(os.getcwd(), 'pickleAnalysis'), 'snapshot_gen{:04d}.pkl'.format(state.it))
+            copyfile(save_file, log_dir_local)
+            tlogger.info("Copied iteration {} into {}".format(state.it, log_dir_local))
+
+            # Save parents
+            save_file = os.path.join(log_dir, 'parent.pkl')
+            with open(save_file, 'wb+') as file:
+                pickle.dump(game_stats, file)
+            copyfile(save_file, os.path.join(log_dir, 'parent_gen{:04d}.pkl'.format(state.it)))
+            tlogger.info("Saved iteration {} to {}".format(state.it, save_file))
+
+            # Copy pickle file to "gpu_implementation/pickleAnalysis" folder
+            log_dir_local = os.path.join(os.path.join(os.getcwd(), 'pickleAnalysis'), 'parent_gen{:04d}.pkl'.format(state.it))
+            copyfile(save_file, log_dir_local)
+            tlogger.info("Copied iteration {} into {}".format(state.it, log_dir_local))
+
+            # Save offspring
+            save_file = os.path.join(log_dir, 'offspring.pkl')
+            with open(save_file, 'wb+') as file:
+                pickle.dump(returns_n2, file)
+            copyfile(save_file, os.path.join(log_dir, 'offspring_gen{:04d}.pkl'.format(state.it)))
+            tlogger.info("Saved iteration {} to {}".format(state.it, save_file))
+
+            # Copy pickle file to "gpu_implementation/pickleAnalysis" folder
+            log_dir_local = os.path.join(os.path.join(os.getcwd(), 'pickleAnalysis'), 'offspring_gen{:04d}.pkl'.format(state.it))
+            copyfile(save_file, log_dir_local)
+            tlogger.info("Copied iteration {} into {}".format(state.it, log_dir_local))
+
+            # Stop if your reach the max amount of iterations
+            if state.it >= exp['iterations']:
+                tlogger.info('Training terminated after {} iterations'.format(state.it))
                 break
+
             results.clear()
 
 if __name__ == "__main__":

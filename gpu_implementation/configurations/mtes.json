@@ -9,6 +9,7 @@
     "return_proc_mode": "centered_rank",
     "l2coeff": 0.005,
     "mutation_power": 0.02,
+    "iterations": 200,
     "optimizer": {
         "args": {
             "stepsize": 0.01
