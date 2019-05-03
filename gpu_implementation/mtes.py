@@ -116,7 +116,7 @@ def main(**exp):
             for game_index, pos_seeds, pos_reward, pos_length in iterator:
                 game_index, neg_seeds, neg_reward, neg_length = next(iterator)
                 assert pos_seeds == neg_seeds
-                results.append(Offspring(pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
+                results.append(Offspring(game_index, pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
             state.num_frames += sess.run(worker.steps_counter) - frames_computed_so_far
 
             state.it += 1
@@ -163,7 +163,7 @@ def main(**exp):
             time_elapsed_this_iter = time.time() - tstart_iteration
             state.time_elapsed += time_elapsed_this_iter
             tlogger.info('Evaluate elite')
-            #_, test_evals, test_timesteps = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
+
             game_index, _, test_evals, test_timesteps = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
             test_timesteps = sum(test_timesteps)
             # Log Results
