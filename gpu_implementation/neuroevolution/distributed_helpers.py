@@ -65,7 +65,7 @@ class WorkerHub(object):
 
         task_id = self._cache[worker_task]
         del self._cache[worker_task]
-        print("== putting into done buffer: worker.game_index={}, task_id={}, result={}".format(worker.game_index, task_id, result))
+#        print("== putting into done buffer: worker.game_index={}, task_id={}, result={}".format(worker.game_index, task_id, result))
         self.done_buffer.put((worker.game_index, task_id, result))
 
     @staticmethod
