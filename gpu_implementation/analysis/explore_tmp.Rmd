@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+options(scipen=999)
+epath <- "~/mt/repos/research.mtne/gpu_implementation/analysis/logs/"
+es_mt_logfile <- paste0(epath, "es_mt.log")
+
+get_iteration_var_data <- function(logfile, var) {
+  grepstr <- paste0("^.* |  ", var, " .*  |")
+  cmd <- paste0("grep '", grepstr, "' ", logfile, " | sed -e 's/^.*  |  //;s/ .*$//'")
+  vals <- try(system(cmd, intern=TRUE))
+  result <- data.frame(vals = as.numeric(vals))
+  names(result) <- var
+  return(result)
+}
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+get_iteration_data <- function(logfile) {
+  iterationcol <- get_iteration_var_data(logfile, "Iteration")
+  
+  g0TestRewMin <- get_iteration_var_data(logfile, "Game0TestRewMin")
+  g0TestRewMin <- bind_rows(g0TestRewMin, data.frame(Game0TestRewMin = rep(NA, nrow(iterationcol) - nrow(g0TestRewMin))))
+  g0TestRewMean <- get_iteration_var_data(logfile, "Game0TestRewMean")
+  g0TestRewMean <- bind_rows(g0TestRewMean, data.frame(Game0TestRewMean = rep(NA, nrow(iterationcol) - nrow(g0TestRewMean))))
+  g0TestRewMedian <- get_iteration_var_data(logfile, "Game0TestRewMedian")
+  g0TestRewMedian <- bind_rows(g0TestRewMedian, data.frame(Game0TestRewMedian = rep(NA, nrow(iterationcol) - nrow(g0TestRewMedian))))
+  g0TestRewMax <- get_iteration_var_data(logfile, "Game0TestRewMax")
+  g0TestRewMax <- bind_rows(g0TestRewMax, data.frame(Game0TestRewMax = rep(NA, nrow(iterationcol) - nrow(g0TestRewMax))))
+  g0TestRewEpCount <- get_iteration_var_data(logfile, "Game0TestEpCount")
+  g0TestRewEpCount <- bind_rows(g0TestRewEpCount, data.frame(Game0TestEpCount = rep(NA, nrow(iterationcol) - nrow(g0TestRewEpCount))))
+  
+  g1TestRewMin <- get_iteration_var_data(logfile, "Game1TestRewMin")
+  g1TestRewMin <- bind_rows(g1TestRewMin, data.frame(Game1TestRewMin = rep(NA, nrow(iterationcol) - nrow(g1TestRewMin))))
+  g1TestRewMean <- get_iteration_var_data(logfile, "Game1TestRewMean")
+  g1TestRewMean <- bind_rows(g1TestRewMean, data.frame(Game1TestRewMean = rep(NA, nrow(iterationcol) - nrow(g1TestRewMean))))
+  g1TestRewMedian <- get_iteration_var_data(logfile, "Game1TestRewMedian")
+  g1TestRewMedian <- bind_rows(g1TestRewMedian, data.frame(Game1TestRewMedian = rep(NA, nrow(iterationcol) - nrow(g1TestRewMedian))))
+  g1TestRewMax <- get_iteration_var_data(logfile, "Game1TestRewMax")
+  g1TestRewMax <- bind_rows(g1TestRewMax, data.frame(Game1TestRewMax = rep(NA, nrow(iterationcol) - nrow(g1TestRewMax))))
+  g1TestRewEpCount <- get_iteration_var_data(logfile, "Game1TestEpCount")
+  g1TestRewEpCount <- bind_rows(g1TestRewEpCount, data.frame(Game1TestEpCount = rep(NA, nrow(iterationcol) - nrow(g1TestRewEpCount))))
+  
+  result <- bind_cols(
+    get_iteration_var_data(logfile, "Iteration"),
+    get_iteration_var_data(logfile, "MutationPower"),
+    get_iteration_var_data(logfile, "TimestepLimitPerEpisode"),
+    get_iteration_var_data(logfile, "PopulationEpRewMax"),
+    get_iteration_var_data(logfile, "PopulationEpRewMean"),
+    get_iteration_var_data(logfile, "PopulationEpRewMedian"),
+    get_iteration_var_data(logfile, "PopulationEpCount"),
+    get_iteration_var_data(logfile, "PopulationTimesteps"),
+    get_iteration_var_data(logfile, "TestRewMean"),
+    get_iteration_var_data(logfile, "TestRewMedian"),
+    get_iteration_var_data(logfile, "TestEpCount"),
+    get_iteration_var_data(logfile, "TestEpLenSum"),
+    get_iteration_var_data(logfile, "InitialRewMax"),
+    get_iteration_var_data(logfile, "InitialRewMean"),
+    get_iteration_var_data(logfile, "InitialRewMedian"),
+    get_iteration_var_data(logfile, "TimestepsThisIter"),
+    get_iteration_var_data(logfile, "TimestepsPerSecondThisIter"),
+    get_iteration_var_data(logfile, "TimestepsComputed"),
+    get_iteration_var_data(logfile, "TimestepsSoFar"),
+    get_iteration_var_data(logfile, "TimeElapsedThisIter"),
+    get_iteration_var_data(logfile, "TimeElapsedThisIterTotal"),
+    get_iteration_var_data(logfile, "TimeElapsed"),
+    get_iteration_var_data(logfile, "TimeElapsedTotal")
+  ) %>% 
+    bind_cols(
+       g0TestRewMin, g0TestRewMean, g0TestRewMedian, g0TestRewMax, g0TestRewEpCount,
+       g1TestRewMin, g1TestRewMean, g1TestRewMedian, g1TestRewMax, g1TestRewEpCount
+     )
+  return(result)
+}
+
+es_mt <- get_iteration_data(es_mt_logfile) %>% 
+  mutate(game = "mt", action_space = "normal")
+
+
+experiments <- bind_rows(
+  es_mt
+)
+```
+
+```{r}
+df_test_rew_mean <- bind_rows(
+  es_mt %>% select(Iteration, Game0TestRewMean) %>% rename(TestRewMean = Game0TestRewMean) %>% mutate(game = "Zaxxon"),
+  es_mt %>% select(Iteration, Game1TestRewMean) %>% rename(TestRewMean = Game1TestRewMean) %>% mutate(game = "Riverraid")
+) %>%
+  filter(Iteration <= 200)
+
+p <- ggplot(df_test_rew_mean, aes(Iteration, TestRewMean, colour = game)) +
+  geom_line() +
+  ylab("Score") +
+  xlab("Iteration") +
+  theme_light(base_size = 10)
+ggsave("~/Desktop/mt.png", p)
+```
+
