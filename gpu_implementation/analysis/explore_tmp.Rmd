@@ -133,6 +133,7 @@ p <- ggplot(df_test_rew_mean, aes(Iteration, TestRewMean, colour = game)) +
   ylab("Score") +
   xlab("Iteration") +
   theme_light(base_size = 10)
+p
 ggsave("~/Desktop/mt.png", p)
 ```
 

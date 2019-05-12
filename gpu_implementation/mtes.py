@@ -25,6 +25,7 @@ import base64
 import pickle
 import tempfile
 import os
+import signal
 from shutil import copyfile
 import tensorflow as tf
 import numpy as np
@@ -52,16 +53,19 @@ def main(**exp):
         return gym_tensorflow.make(game=exp['games'][1], batch_size=b)
 
     def make_offspring(state):
-        for i in range(exp['population_size'] // 2):
+        for i in range(exp['population_size'] // 4):
             idx = noise.sample_index(rs, worker.model.num_params)
             mutation_power = state.sample(state.mutation_power)
             pos_theta = worker.model.compute_mutation(noise, state.theta, idx, mutation_power)
 
             yield (pos_theta, idx)
+            yield (pos_theta, idx)
+
             neg_theta = worker.model.compute_mutation(noise, state.theta, idx, -mutation_power)
             diff = (np.max(np.abs((pos_theta + neg_theta)/2 - state.theta)))
             assert diff < 1e-5, 'Diff too large: {}'.format(diff)
 
+            yield (neg_theta, idx)
             yield (neg_theta, idx)
 
     worker = MTConcurrentWorkers([make_env_game0, make_env_game1], Model, batch_size=32)
@@ -103,15 +107,11 @@ def main(**exp):
             print("=== next cycle in while loop")
             tstart_iteration = time.time()
 
-            # Stop if your reach the max amount of iterations
-            if state.it >= exp['iterations']:
-                tlogger.info('Training terminated after {} iterations'.format(state.it))
-                break
-
             frames_computed_so_far = sess.run(worker.steps_counter)
             print("=== frames_captured_so_far = {}".format(frames_computed_so_far))
             tlogger.info('Evaluating perturbations')
-            iterator = iter(worker.monitor_eval(make_offspring(state), max_frames=state.tslimit * 4))
+            offspring_state = [o for o in make_offspring(state)]
+            iterator = iter(worker.monitor_eval(offspring_state, max_frames=state.tslimit * 4))
             results = []
             for game_index, pos_seeds, pos_reward, pos_length in iterator:
                 game_index, neg_seeds, neg_reward, neg_length = next(iterator)
@@ -215,45 +215,22 @@ def main(**exp):
                     tlogger.info('Increased threshold to {}'.format(state.tslimit))
 
             os.makedirs(log_dir, exist_ok=True)
-            save_file = os.path.join(log_dir, 'snapshot.pkl')
-            with open(save_file, 'wb+') as file:
-                pickle.dump(state, file, pickle.HIGHEST_PROTOCOL)
-            copyfile(save_file, os.path.join(log_dir, 'snapshot_gen{:04d}.pkl'.format(state.it)))
-            tlogger.info("Saved iteration {} to {}".format(state.it, save_file))
 
-            # Copy pickle file to "gpu_implementation/pickleAnalysis" folder
-            log_dir_local = os.path.join(os.path.join(os.getcwd(), 'pickleAnalysis'), 'snapshot_gen{:04d}.pkl'.format(state.it))
-            copyfile(save_file, log_dir_local)
-            tlogger.info("Copied iteration {} into {}".format(state.it, log_dir_local))
+            def save_pickle(dat, pickle_filename):
+                save_file = os.path.join(log_dir, "{:04d}-{}.pkl".format(state.it, pickle_filename))
+                with open(save_file, 'wb+') as file:
+                    pickle.dump(dat, file, pickle.HIGHEST_PROTOCOL)
+                tlogger.info("Saved {}".format(save_file))
 
-            # Save parents
-            save_file = os.path.join(log_dir, 'parent.pkl')
-            with open(save_file, 'wb+') as file:
-                pickle.dump(game_stats, file)
-            copyfile(save_file, os.path.join(log_dir, 'parent_gen{:04d}.pkl'.format(state.it)))
-            tlogger.info("Saved iteration {} to {}".format(state.it, save_file))
-
-            # Copy pickle file to "gpu_implementation/pickleAnalysis" folder
-            log_dir_local = os.path.join(os.path.join(os.getcwd(), 'pickleAnalysis'), 'parent_gen{:04d}.pkl'.format(state.it))
-            copyfile(save_file, log_dir_local)
-            tlogger.info("Copied iteration {} into {}".format(state.it, log_dir_local))
-
-            # Save offspring
-            save_file = os.path.join(log_dir, 'offspring.pkl')
-            with open(save_file, 'wb+') as file:
-                pickle.dump(returns_n2, file)
-            copyfile(save_file, os.path.join(log_dir, 'offspring_gen{:04d}.pkl'.format(state.it)))
-            tlogger.info("Saved iteration {} to {}".format(state.it, save_file))
-
-            # Copy pickle file to "gpu_implementation/pickleAnalysis" folder
-            log_dir_local = os.path.join(os.path.join(os.getcwd(), 'pickleAnalysis'), 'offspring_gen{:04d}.pkl'.format(state.it))
-            copyfile(save_file, log_dir_local)
-            tlogger.info("Copied iteration {} into {}".format(state.it, log_dir_local))
+            save_pickle(state, 'snapshot')
+            save_pickle(game_stats, 'parent')
+            save_pickle(returns_n2, 'offspring')
+            save_pickle(offspring_state, 'offspring_state')
 
             # Stop if your reach the max amount of iterations
             if state.it >= exp['iterations']:
-                tlogger.info('Training terminated after {} iterations'.format(state.it))
-                break
+                tlogger.info('Training terminated after {} iterations. Exiting.'.format(state.it))
+                os.kill(os.getpid(), signal.SIGTERM)
 
             results.clear()
 

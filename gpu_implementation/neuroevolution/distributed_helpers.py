@@ -220,7 +220,7 @@ class MTAsyncTaskHub2(AsyncTaskHub):
             raise
 
     def run_async(self, game_index, task, callback=None, error_callback=None):
-        print(task)
+#        print(task)
         result = ApplyResult(self._cache, callback, error_callback)
         if game_index == 0:
             self.input_queue_0.put((result._job, task))
