@@ -21,6 +21,7 @@ import tensorflow as tf
 import numpy as np
 import math
 import tabular_logger as tlogger
+from collections import Counter
 from gym_tensorflow.ops import indexed_matmul
 
 class BaseModel(object):
@@ -37,10 +38,12 @@ class BaseModel(object):
         return False
 
     def create_variable(self, name, shape, scale_by):
+#        print("create_variable: {}, {}".format(name, scale_by))
         var = tf.get_variable(name, (self.batch_size, ) + shape, trainable=False)
         if not hasattr(var, 'scale_by'):
             var.scale_by = scale_by
             self.variables.append(var)
+#        print("scale_by: {}".format(scale_by))
         return var
 
     def create_weight_variable(self, name, shape, std):
@@ -139,7 +142,9 @@ class BaseModel(object):
         else:
             idx = seeds[0]
             theta = noise.get(idx, self.num_params).copy() * self.scale_by
-
+#            print(Counter(self.scale_by))
+#            print(self.scale_by[-322:])
+#            print("scale_by: {}, idx: {}, theta: {}, len(theta): {}".format(self.scale_by, idx, theta, len(theta)))
             for mutation in seeds[1:]:
                 idx, power = mutation
                 theta = self.compute_mutation(noise, theta, idx, power)
@@ -189,4 +194,4 @@ class BaseModel(object):
             assigns.append(tf.scatter_update(v, self.theta_idx, tf.reshape(self.theta[offset:offset+size], shape[1:])))
             offset += size
         self.load_op = tf.group( * assigns)
-        self.description += "Number of parameteres: {}".format(self.num_params)
+        self.description += "Number of parameteres: {}\n".format(self.num_params)

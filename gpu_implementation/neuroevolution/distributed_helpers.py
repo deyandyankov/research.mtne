@@ -72,16 +72,9 @@ class WorkerHub(object):
     def _handle_input(self):
         try:
             while True:
-#                worker_task = self.available_workers.get()
-#                if worker_task is None:
-#                    tlogger.info('WorkerHub._handle_input done')
-#                    break
-#                worker, subworker = worker_task
                 if self.next_game_type_must_be == 0:
-#                    print("Getting queue 0")
                     current_q = self.available_workers_0
                 if self.next_game_type_must_be == 1:
-#                    print("Getting queue 1")
                     current_q = self.available_workers_1
 
                 worker_task = current_q.get()

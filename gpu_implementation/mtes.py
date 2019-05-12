@@ -113,10 +113,23 @@ def main(**exp):
             offspring_state = [o for o in make_offspring(state)]
             iterator = iter(worker.monitor_eval(offspring_state, max_frames=state.tslimit * 4))
             results = []
-            for game_index, pos_seeds, pos_reward, pos_length in iterator:
-                game_index, neg_seeds, neg_reward, neg_length = next(iterator)
-                assert pos_seeds == neg_seeds
-                results.append(Offspring(game_index, pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
+
+            for pos_game_index0, pos_seeds0, pos_rewards0, pos_length0 in iterator:
+                pos_game_index1, pos_seeds1, pos_rewards1, pos_length1 = next(iterator)
+
+                neg_game_index0, neg_seeds0, neg_rewards0, neg_length0 = next(iterator)
+                neg_game_index1, neg_seeds1, neg_rewards1, neg_length1 = next(iterator)
+
+                assert pos_seeds0 == neg_seeds0
+                assert pos_seeds1 == neg_seeds1
+
+                results.append(Offspring([pos_game_index0, neg_game_index0], pos_seeds0, [pos_rewards0, neg_rewards0], [pos_length0, neg_length0]))
+                results.append(Offspring([pos_game_index1, neg_game_index1], pos_seeds1, [pos_rewards1, neg_rewards1], [pos_length1, neg_length1]))
+
+#            for game_index, pos_seeds, pos_reward, pos_length in iterator:
+#                game_index, neg_seeds, neg_reward, neg_length = next(iterator)
+#                assert pos_seeds == neg_seeds
+#                results.append(Offspring([pos_game_index, neg_game_index], pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
             state.num_frames += sess.run(worker.steps_counter) - frames_computed_so_far
 
             state.it += 1
@@ -144,11 +157,39 @@ def main(**exp):
             returns_n2 = np.array([a.rewards for a in results])
             noise_inds_n = [a.seeds for a in results]
 
-            if exp['return_proc_mode'] == 'centered_rank':
-                proc_returns_n2 = compute_centered_ranks(returns_n2)
-            else:
-                raise NotImplementedError(exp['return_proc_mode'])
-            # Compute and take step
+            print(returns_n2)
+            print(noise_inds_n)
+
+            returns_n2_game0 = []
+            returns_n2_game1 = []
+            noise_inds_n_game0 = []
+            noise_inds_n_game1 = []
+            for i in range(len(results)):
+                if (i + 1) % 2 == 0:
+                    returns_n2_game1.append(results[i].rewards)
+                    noise_inds_n_game1.append(results[i].seeds)
+                else:
+                    returns_n2_game0.append(results[i].rewards)
+                    noise_inds_n_game0.append(results[i].seeds)
+
+            returns_n2_game0 = np.array(returns_n2_game0)
+            returns_n2_game1 = np.array(returns_n2_game1)
+
+#            print("returns_n2: {}".format(returns_n2))
+#            print("returns_n2_game0: {}".format(returns_n2_game0))
+#            print("returns_n2_game1: {}".format(returns_n2_game1))
+#            print("noise_inds_n: {}".format(noise_inds_n))
+#            print("noise_inds_n_game0: {}".format(noise_inds_n_game0))
+#            print("noise_inds_n_game1: {}".format(noise_inds_n_game1))
+
+            proc_returns_n2_game0 = compute_centered_ranks(returns_n2_game0)
+            proc_returns_n2_game1 = compute_centered_ranks(returns_n2_game1)
+            proc_returns_n2 = np.concatenate((proc_returns_n2_game0, proc_returns_n2_game1))
+
+#            print("proc_returns_n2_game0: {}".format(proc_returns_n2_game0))
+#            print("proc_returns_n2_game1: {}".format(proc_returns_n2_game1))
+#            print("proc_returns_n2: {}".format(proc_returns_n2))
+
             g, count = batched_weighted_sum(
                 proc_returns_n2[:, 0] - proc_returns_n2[:, 1],
                 (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
@@ -158,7 +199,28 @@ def main(**exp):
             g /= returns_n2.size
 
             assert g.shape == (worker.model.num_params,) and g.dtype == np.float32 and count == len(noise_inds_n)
+#            print("state.theta before: {}".format(state.theta))
             update_ratio, state.theta = state.optimizer.update(-g + exp['l2coeff'] * state.theta)
+#            print("update_ratio: {}".format(update_ratio))
+#            print("state.theta after: {}".format(state.theta))
+
+
+            #if exp['return_proc_mode'] == 'centered_rank':
+            #    proc_returns_n2 = compute_centered_ranks(returns_n2)
+            #else:
+            #    raise NotImplementedError(exp['return_proc_mode'])
+            # Compute and take step
+            #g, count = batched_weighted_sum(
+            #    proc_returns_n2[:, 0] - proc_returns_n2[:, 1],
+            #    (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
+            #    batch_size=500
+            #)
+            # NOTE: gradients are scaled by \theta
+            #g /= returns_n2.size
+
+            #assert g.shape == (worker.model.num_params,) and g.dtype == np.float32 and count == len(noise_inds_n)
+            #update_ratio, state.theta = state.optimizer.update(-g + exp['l2coeff'] * state.theta)
+
 
             time_elapsed_this_iter = time.time() - tstart_iteration
             state.time_elapsed += time_elapsed_this_iter

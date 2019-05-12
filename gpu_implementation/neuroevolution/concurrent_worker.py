@@ -326,7 +326,7 @@ class MTConcurrentWorkers(ConcurrentWorkers):
             time.sleep(0.1)
         tlogger.info('Done evaluating {} episodes in {:.2f} seconds'.format(len(tasks), time.time()-tstart_all))
         result = [t.get() for t in tasks]
-        print(result)
+        print("monitor_eval result: {}".format(result))
         return result
 
 

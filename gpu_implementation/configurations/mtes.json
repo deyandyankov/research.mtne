@@ -2,15 +2,15 @@
     "games": ["zaxxon", "riverraid"],
     "model": "MTModelVirtualBN",
     "num_validation_episodes": 30,
-    "num_test_episodes": 10,
-    "population_size": 4,
+    "num_test_episodes": 200,
+    "population_size": 500,
     "population_size_comment": "Must be divisible by 4",
     "timesteps": 5e9,
     "episode_cutoff_mode": 5000,
     "return_proc_mode": "centered_rank",
     "l2coeff": 0.005,
     "mutation_power": 0.02,
-    "iterations": 2,
+    "iterations": 200,
     "optimizer": {
         "args": {
             "stepsize": 0.01
