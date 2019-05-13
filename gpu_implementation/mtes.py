@@ -110,8 +110,11 @@ def main(**exp):
             frames_computed_so_far = sess.run(worker.steps_counter)
             print("=== frames_captured_so_far = {}".format(frames_computed_so_far))
             tlogger.info('Evaluating perturbations')
-            offspring_state = [o for o in make_offspring(state)]
-            iterator = iter(worker.monitor_eval(offspring_state, max_frames=state.tslimit * 4))
+#            offspring_state = [o for o in make_offspring(state)]
+#            iterator = iter(worker.monitor_eval(offspring_state, max_frames=state.tslimit * 4))
+
+            iterator = iter(worker.monitor_eval(make_offspring(state), max_frames=state.tslimit * 4))
+
             results = []
 
             for pos_game_index0, pos_seeds0, pos_rewards0, pos_length0 in iterator:
@@ -287,14 +290,14 @@ def main(**exp):
             save_pickle(state, 'snapshot')
             save_pickle(game_stats, 'parent')
             save_pickle(returns_n2, 'offspring')
-            save_pickle(offspring_state, 'offspring_state')
+#            save_pickle(offspring_state, 'offspring_state')
 
             # Stop if your reach the max amount of iterations
             if state.it >= exp['iterations']:
                 tlogger.info('Training terminated after {} iterations. Exiting.'.format(state.it))
                 os.kill(os.getpid(), signal.SIGTERM)
 
-            results.clear()
+            #results.clear()
 
 if __name__ == "__main__":
     with open(sys.argv[-1], 'r') as f:
