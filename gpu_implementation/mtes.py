@@ -160,8 +160,8 @@ def main(**exp):
             returns_n2 = np.array([a.rewards for a in results])
             noise_inds_n = [a.seeds for a in results]
 
-            print(returns_n2)
-            print(noise_inds_n)
+            print("returns_n2: {}".format(returns_n2))
+            print("noise_inds_n: {}".format(noise_inds_n))
 
             returns_n2_game0 = []
             returns_n2_game1 = []

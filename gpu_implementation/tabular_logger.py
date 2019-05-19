@@ -141,6 +141,7 @@ class TabularLogger(object):
             return self.dir
         self.dir = os.path.join(os.path.dirname(__file__), 'logs', 'mtes_' + time.strftime("%Y%m%d_%H%M%S"))
         os.makedirs(self.dir)
+        os.makedirs(os.path.join(self.dir, "offspring"))
         #self.dir = tempfile.mkdtemp(prefix=temp_prefix)
         return self.dir
 

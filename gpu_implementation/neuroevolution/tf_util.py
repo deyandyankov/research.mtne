@@ -30,6 +30,7 @@ def get_available_gpus():
 
 class WorkerSession(object):
     def __init__(self, worker):
+        print("Creating WorkerSession with worker {}".format(type(worker)))
         self._worker = worker
     def __enter__(self, *args, **kwargs):
         self._sess = tf.Session(*args, **kwargs)
