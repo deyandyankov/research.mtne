@@ -1,5 +1,6 @@
 {
     "games": ["zaxxon", "riverraid"],
+    "games_original": ["zaxxon", "riverraid"],
     "model": "ModelVirtualBN",
     "num_validation_episodes": 30,
     "num_test_episodes": 200,

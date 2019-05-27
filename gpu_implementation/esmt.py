@@ -197,8 +197,9 @@ def main(**exp):
         game_index = iteration % 2
         worker = workers[0]
 
-        ### GAME 0
-#        worker.initialize(tf_sess)
+        ##############
+        ### GAME 0 ###
+        ##############
         tstart_iteration = time.time()
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
         tlogger.info('Evaluating perturbations (0)')
@@ -227,9 +228,10 @@ def main(**exp):
         print("game0 rewards: {}".format(np.mean(game0_rewards)))
         save_pickle(iteration, log_dir, "game0_rewards", game0_rewards)
 
-        ### GAME 1
+        ##############
+        ### GAME 1 ###
+        ##############
         worker = workers[1]
-#        worker.initialize(tf_sess)
         tstart_iteration = time.time()
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
         tlogger.info('Evaluating perturbations (1)')
@@ -258,10 +260,10 @@ def main(**exp):
         print("game1 rewards: {}".format(np.mean(game1_rewards)))
         save_pickle(iteration, log_dir, "game1_rewards", game1_rewards)
 
-        ########################
-
-        # Compute and take step
-        proc_returns_n2 = np.concatenate((game0_returns_n2, game1_proc_returns_n2))
+        ####################
+        ### UPDATE THETA ###
+        ####################
+        proc_returns_n2 = np.concatenate((game0_proc_returns_n2, game1_proc_returns_n2))
 
         assert game0_noise_inds_n == game1_noise_inds_n
         noise_inds_n = game0_noise_inds_n + game1_noise_inds_n # concatenate the two lists
@@ -279,6 +281,20 @@ def main(**exp):
         update_ratio, state.theta = state.optimizer.update(-g + exp['l2coeff'] * state.theta)
 
         save_pickle(iteration, log_dir, "state", state)
+
+        ######################
+        ### EVALUATE ELITE ###
+        ######################
+        _, test_evals, test_timesteps = workers[0].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//2)[0]
+        print("game0 test_evals: {}".format(np.mean(test_evals)))
+        save_pickle(iteration, log_dir, "game0_elite", test_evals)
+
+        _, test_evals, test_timesteps = workers[1].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//2)[0]
+        print("game1 test_evals: {}".format(np.mean(test_evals)))
+        save_pickle(iteration, log_dir, "game1_elite", test_evals)
+
+        state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
+
 
         state.it += 1
 
