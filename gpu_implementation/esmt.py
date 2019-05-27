@@ -162,6 +162,27 @@ def load_pickle(iteration, log_dir, pickle_filename):
     with open(save_file, 'rb') as file:
         return pickle.load(file)
 
+def obtain_proc_returns(learn_option, game_returns):
+    if learn_option not in ["concat_rewards", "alternate_games", "equal_prob_random_choice"]:
+        raise NotImplementedError(learn_option)
+
+    if learn_option == 'concat_rewards':
+        proc_returns = [compute_centered_ranks(gameret) for gameret in game_returns]
+        return np.concatenate(tuple(proc_returns))
+
+    if learn_option == 'alternate_games':
+        pass
+
+    if learn_option == 'equal_prob_random_choice':
+        total_number_of_games = len(game_returns)
+        probs = np.array([1] * total_number_of_games) / float(total_number_of_games)
+        compute_centered_ranks_for_game = np.random.choice(range(total_number_of_games), p=probs)
+        game_index = compute_centered_ranks_for_game
+        print("Choosing to optimize for game_index: {}".format(game_index))
+        proc_returns = [compute_centered_ranks(game_returns[game_index]) for g in game_returns]
+        return np.concatenate(tuple(proc_returns))
+
+
 def main(**exp):
     log_dir = tlogger.log_dir()
 
@@ -193,20 +214,17 @@ def main(**exp):
     workers[0].initialize(tf_sess)
     workers[1].initialize(tf_sess)
 
-    for iteration in range(200):
-        game_index = iteration % 2
-        worker = workers[0]
+    for iteration in range(exp['iterations']):
+        tlogger.info("BEGINNING ITERATION: {}".format(iteration))
+
 
         ##############
         ### GAME 0 ###
         ##############
-        tstart_iteration = time.time()
+        worker = workers[0]
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
-        tlogger.info('Evaluating perturbations (0)')
-
         offsprings = [offspring for offspring in make_offspring(exp, noise, rs, worker, state)]
         save_pickle(iteration, log_dir, "offsprings", offsprings)
-
         game0_results = []
         game0_rewards = []
         iterator = iter(worker.monitor_eval(offsprings, max_frames=state.tslimit * 4))
@@ -217,27 +235,18 @@ def main(**exp):
             rewards = result.rewards
             game0_results.append(result)
             game0_rewards.append(rewards)
-
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
-
-        # compute centered ranks
         game0_returns_n2 = np.array([a.rewards for a in game0_results])
         game0_noise_inds_n = [a.seeds for a in game0_results]
-        game0_proc_returns_n2 = compute_centered_ranks(game0_returns_n2)
-
-        print("game0 rewards: {}".format(np.mean(game0_rewards)))
+        tlogger.info("game0 rewards: {}".format(np.mean(game0_rewards)))
         save_pickle(iteration, log_dir, "game0_rewards", game0_rewards)
 
         ##############
         ### GAME 1 ###
         ##############
         worker = workers[1]
-        tstart_iteration = time.time()
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
-        tlogger.info('Evaluating perturbations (1)')
-
         offsprings = load_pickle(iteration, log_dir, "offsprings")
-
         game1_results = []
         game1_rewards = []
         iterator = iter(worker.monitor_eval(offsprings, max_frames=state.tslimit * 4))
@@ -248,28 +257,23 @@ def main(**exp):
             rewards = result.rewards
             game1_results.append(result)
             game1_rewards.append(rewards)
-
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
-
-        # compute centered ranks
         game1_returns_n2 = np.array([a.rewards for a in game1_results])
         game1_noise_inds_n = [a.seeds for a in game1_results]
-        game1_proc_returns_n2 = compute_centered_ranks(game1_returns_n2)
-
-
-        print("game1 rewards: {}".format(np.mean(game1_rewards)))
+        tlogger.info("game1 rewards: {}".format(np.mean(game1_rewards)))
         save_pickle(iteration, log_dir, "game1_rewards", game1_rewards)
 
         ####################
         ### UPDATE THETA ###
         ####################
-        proc_returns_n2 = np.concatenate((game0_proc_returns_n2, game1_proc_returns_n2))
+        game_returns = [game0_returns_n2, game1_returns_n2]
+        proc_returns = obtain_proc_returns(exp['learn_option'], game_returns)
 
         assert game0_noise_inds_n == game1_noise_inds_n
         noise_inds_n = game0_noise_inds_n + game1_noise_inds_n # concatenate the two lists
 
         g, count = batched_weighted_sum(
-            proc_returns_n2[:, 0] - proc_returns_n2[:, 1],
+            proc_returns[:, 0] - proc_returns[:, 1],
             (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
             batch_size=500
         )
@@ -286,16 +290,14 @@ def main(**exp):
         ### EVALUATE ELITE ###
         ######################
         _, test_evals, test_timesteps = workers[0].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//2)[0]
-        print("game0 test_evals: {}".format(np.mean(test_evals)))
+        tlogger.info("game0 elite: {}".format(np.mean(test_evals)))
         save_pickle(iteration, log_dir, "game0_elite", test_evals)
 
         _, test_evals, test_timesteps = workers[1].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//2)[0]
-        print("game1 test_evals: {}".format(np.mean(test_evals)))
+        tlogger.info("game1 elite: {}".format(np.mean(test_evals)))
         save_pickle(iteration, log_dir, "game1_elite", test_evals)
 
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
-
-
         state.it += 1
 
     os.kill(os.getpid(), signal.SIGTERM)

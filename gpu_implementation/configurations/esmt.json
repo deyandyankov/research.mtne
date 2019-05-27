@@ -1,6 +1,7 @@
 {
     "games": ["zaxxon", "riverraid"],
-    "games_original": ["zaxxon", "riverraid"],
+    "learn_option": "equal_prob_random_choice",
+    "learn_options": ["concat_rewards", "alternate_games", "equal_prob_random_choice"],
     "model": "ModelVirtualBN",
     "num_validation_episodes": 30,
     "num_test_episodes": 200,
@@ -11,7 +12,7 @@
     "return_proc_mode": "centered_rank",
     "l2coeff": 0.005,
     "mutation_power": 0.02,
-    "iterations": 2,
+    "iterations": 200,
     "optimizer": {
         "args": {
             "stepsize": 0.01
