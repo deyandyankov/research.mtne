@@ -138,11 +138,11 @@ def batched_weighted_sum(weights, vecs, batch_size):
     return total, num_items_summed
 
 def make_offspring(exp, noise, rs, worker, state, seeds_vector = None):
-    if seeds_vector is None:
-        seeds_vector = noise.sample_index(rs, worker.model.num_params)
-
     for i in range(exp['population_size'] // 2 // len(exp['games'])):
-        idx = seeds_vector[i]
+        if seeds_vector is None:
+            idx = noise.sample_index(rs, worker.model.num_params)
+        else:
+            idx = seeds_vector[i]
         mutation_power = state.sample(state.mutation_power)
         pos_theta = worker.model.compute_mutation(noise, state.theta, idx, mutation_power)
         yield (pos_theta, idx)
@@ -228,6 +228,7 @@ def main(**exp):
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
         game0_results = []
         game0_rewards = []
+        game0_episode_lengths = []
 
         iterator = iter(worker.monitor_eval(make_offspring(exp, noise, rs, worker, state), max_frames=state.tslimit * 4))
 
@@ -238,11 +239,14 @@ def main(**exp):
             rewards = result.rewards
             game0_results.append(result)
             game0_rewards.append(rewards)
+            game0_episode_lengths.append(result.ep_len)
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
         game0_returns_n2 = np.array([a.rewards for a in game0_results])
         game0_noise_inds_n = [a.seeds for a in game0_results]
         tlogger.info("game0 rewards: {}".format(np.mean(game0_rewards)))
+        tlogger.info("game0 eplens: {}".format(game0_episode_lengths))
         save_pickle(iteration, log_dir, "game0_rewards", game0_rewards)
+        save_pickle(iteration, log_dir, "game0_episode_lengths", game0_episode_lengths)
 
         ##############
         ### GAME 1 ###
@@ -251,7 +255,7 @@ def main(**exp):
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
         game1_results = []
         game1_rewards = []
-
+        game1_episode_lengths = []
         seeds_vector = np.array(game0_noise_inds_n)
         iterator = iter(worker.monitor_eval(make_offspring(exp, noise, rs, worker, state, seeds_vector), max_frames=state.tslimit * 4))
 
@@ -262,11 +266,14 @@ def main(**exp):
             rewards = result.rewards
             game1_results.append(result)
             game1_rewards.append(rewards)
+            game1_episode_lengths.append(result.ep_len)
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
         game1_returns_n2 = np.array([a.rewards for a in game1_results])
         game1_noise_inds_n = [a.seeds for a in game1_results]
         tlogger.info("game1 rewards: {}".format(np.mean(game1_rewards)))
+        tlogger.info("game1 eplens: {}".format(game0_episode_lengths))
         save_pickle(iteration, log_dir, "game1_rewards", game1_rewards)
+        save_pickle(iteration, log_dir, "game1_episode_lengths", game1_episode_lengths)
 
         tlogger.info("Saving offsprings seeds")
         save_pickle(iteration, log_dir, "offsprings_seeds", game1_noise_inds_n)

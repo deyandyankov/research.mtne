@@ -16,6 +16,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+import uuid
 import time
 import threading
 import tensorflow as tf
@@ -28,6 +29,7 @@ from .distributed_helpers import AsyncWorker, WorkerHub, AsyncTaskHub
 
 class RLEvalutionWorker(AsyncWorker):
     def __init__(self, make_env_f, model, batch_size, device='/cpu:0', ref_batch=None):
+        self.rlevaluationworker_uuid = uuid.uuid1()
         self.batch_size = batch_size
         self.make_env_f = make_env_f
         self.sample_callback = [None] * self.batch_size
@@ -71,7 +73,7 @@ class RLEvalutionWorker(AsyncWorker):
 
     def _loop(self):
         info = [None] * self.batch_size
-        running = np.zeros((self.batch_size,), dtype=np.bool)
+        running = np.zeros((self.batch_size, ), dtype=np.bool)
         cumrews = np.zeros((self.batch_size, ), dtype=np.float32)
         cumlen = np.zeros((self.batch_size, ), dtype=np.int32)
 
@@ -92,10 +94,12 @@ class RLEvalutionWorker(AsyncWorker):
 
             indices = np.nonzero(running)[0]
             rews, is_done, _ = self.sess.run([self.rew_op, self.done_op, self.incr_counter], {self.placeholder_indices: indices})
+
             cumrews[running] += rews
             cumlen[running] += 1
             if any(is_done):
                 for idx in indices[is_done]:
+                    # print("[deyan] uuid: {}, finished episode, cumrews[idx]: {}, cumlen[idx]: {}".format(self.rlevaluationworker_uuid, cumrews[idx], cumlen[idx]))
                     self.sample_callback[idx](self, idx, (self.model.seeds[idx], cumrews[idx], cumlen[idx]))
                 cumrews[indices[is_done]] = 0.
                 cumlen[indices[is_done]] = 0.
@@ -116,7 +120,7 @@ class RLEvalutionWorker(AsyncWorker):
         return range(self.batch_size)
 
     def run_async(self, task_id, task, callback):
-        theta, extras, max_frames=task
+        theta, extras, max_frames = task
         self.model.load(self.sess, task_id, theta, extras)
         if max_frames is None:
             max_frames = self.env.env_default_timestep_cutoff

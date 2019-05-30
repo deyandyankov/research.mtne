@@ -64,7 +64,6 @@ class WorkerHub(object):
                     break
                 task_id, task = task
                 self._cache[worker_task] = task_id
-
                 worker.run_async(subworker, task, self.worker_callback)
         except:
             tlogger.exception('WorkerHub._handle_input exception thrown')
@@ -78,6 +77,7 @@ class WorkerHub(object):
                 if result is None:
                     tlogger.info('WorkerHub._handle_output done')
                     break
+                # print("[deyan] _handle_output: {}".format(result))
                 self.done_queue.put(result)
         except:
             tlogger.exception('WorkerHub._handle_output exception thrown')
