@@ -243,8 +243,8 @@ def main(**exp):
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
         game0_returns_n2 = np.array([a.rewards for a in game0_results])
         game0_noise_inds_n = [a.seeds for a in game0_results]
-        tlogger.info("game0 rewards: {}".format(np.mean(game0_rewards)))
-        tlogger.info("game0 eplens: {}".format(game0_episode_lengths))
+        # tlogger.info("game0 rewards: {}".format(np.mean(game0_rewards)))
+        # tlogger.info("game0 eplens: {}".format(game0_episode_lengths))
         save_pickle(iteration, log_dir, "game0_rewards", game0_rewards)
         save_pickle(iteration, log_dir, "game0_episode_lengths", game0_episode_lengths)
 
@@ -270,8 +270,8 @@ def main(**exp):
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
         game1_returns_n2 = np.array([a.rewards for a in game1_results])
         game1_noise_inds_n = [a.seeds for a in game1_results]
-        tlogger.info("game1 rewards: {}".format(np.mean(game1_rewards)))
-        tlogger.info("game1 eplens: {}".format(game0_episode_lengths))
+        # tlogger.info("game1 rewards: {}".format(np.mean(game1_rewards)))
+        # tlogger.info("game1 eplens: {}".format(game0_episode_lengths))
         save_pickle(iteration, log_dir, "game1_rewards", game1_rewards)
         save_pickle(iteration, log_dir, "game1_episode_lengths", game1_episode_lengths)
 
@@ -306,11 +306,13 @@ def main(**exp):
         ######################
         _, test_evals, test_timesteps = workers[0].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//2)[0]
         tlogger.info("game0 elite: {}".format(np.mean(test_evals)))
-        save_pickle(iteration, log_dir, "game0_elite", test_evals)
+        save_pickle(iteration, log_dir, 'game0_elite', test_evals)
+        save_pickle(iteration, log_dir, 'game0_elite_timestemps', test_timesteps)
 
         _, test_evals, test_timesteps = workers[1].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//2)[0]
         tlogger.info("game1 elite: {}".format(np.mean(test_evals)))
         save_pickle(iteration, log_dir, "game1_elite", test_evals)
+        save_pickle(iteration, log_dir, 'game1_elite_timestemps', test_timesteps)
 
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
         state.it += 1
