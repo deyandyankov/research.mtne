@@ -137,18 +137,21 @@ def batched_weighted_sum(weights, vecs, batch_size):
         num_items_summed += len(batch_weights)
     return total, num_items_summed
 
-def make_offspring(exp, noise, rs, worker, state):
+def make_offspring(exp, noise, rs, worker, state, seeds_vector = None):
+    if seeds_vector is None:
+        seeds_vector = noise.sample_index(rs, worker.model.num_params)
+
     for i in range(exp['population_size'] // 2 // len(exp['games'])):
-        idx = noise.sample_index(rs, worker.model.num_params)
+        idx = seeds_vector[i]
         mutation_power = state.sample(state.mutation_power)
         pos_theta = worker.model.compute_mutation(noise, state.theta, idx, mutation_power)
-
         yield (pos_theta, idx)
-        neg_theta = worker.model.compute_mutation(noise, state.theta, idx, -mutation_power)
-        diff = (np.max(np.abs((pos_theta + neg_theta)/2 - state.theta)))
-        assert diff < 1e-5, 'Diff too large: {}'.format(diff)
 
+        neg_theta = worker.model.compute_mutation(noise, state.theta, idx, -mutation_power)
+        diff = (np.max(np.abs((pos_theta + neg_theta) / 2 - state.theta)))
+        assert diff < 1e-5, 'Diff too large: {}'.format(diff)
         yield (neg_theta, idx)
+
 
 def save_pickle(iteration, log_dir, pickle_filename, dat):
     save_file = os.path.join(log_dir, "{:04d}-{}.pkl".format(iteration, pickle_filename))
@@ -223,11 +226,11 @@ def main(**exp):
         ##############
         worker = workers[0]
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
-        offsprings = [offspring for offspring in make_offspring(exp, noise, rs, worker, state)]
-        save_pickle(iteration, log_dir, "offsprings", offsprings)
         game0_results = []
         game0_rewards = []
-        iterator = iter(worker.monitor_eval(offsprings, max_frames=state.tslimit * 4))
+
+        iterator = iter(worker.monitor_eval(make_offspring(exp, noise, rs, worker, state), max_frames=state.tslimit * 4))
+
         for pos_seeds, pos_reward, pos_length in iterator:
             neg_seeds, neg_reward, neg_length = next(iterator)
             assert pos_seeds == neg_seeds
@@ -246,10 +249,12 @@ def main(**exp):
         ##############
         worker = workers[1]
         frames_computed_so_far = tf_sess.run(worker.steps_counter)
-        offsprings = load_pickle(iteration, log_dir, "offsprings")
         game1_results = []
         game1_rewards = []
-        iterator = iter(worker.monitor_eval(offsprings, max_frames=state.tslimit * 4))
+
+        seeds_vector = np.array(game0_noise_inds_n)
+        iterator = iter(worker.monitor_eval(make_offspring(exp, noise, rs, worker, state, seeds_vector), max_frames=state.tslimit * 4))
+
         for pos_seeds, pos_reward, pos_length in iterator:
             neg_seeds, neg_reward, neg_length = next(iterator)
             assert pos_seeds == neg_seeds
@@ -262,6 +267,9 @@ def main(**exp):
         game1_noise_inds_n = [a.seeds for a in game1_results]
         tlogger.info("game1 rewards: {}".format(np.mean(game1_rewards)))
         save_pickle(iteration, log_dir, "game1_rewards", game1_rewards)
+
+        tlogger.info("Saving offsprings seeds")
+        save_pickle(iteration, log_dir, "offsprings_seeds", game1_noise_inds_n)
 
         ####################
         ### UPDATE THETA ###
