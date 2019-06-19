@@ -8,7 +8,7 @@
     "population_size": 10000,
     "population_size_comment": "Must be divisible by 4",
     "timesteps": 5e9,
-    "episode_cutoff_mode": 5000,
+    "episode_cutoff_mode": 50000,
     "return_proc_mode": "centered_rank",
     "l2coeff": 0.005,
     "mutation_power": 0.02,

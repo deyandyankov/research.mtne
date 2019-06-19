@@ -115,6 +115,10 @@ class BaseModel(object):
             self.indices = indices
             self.graph = tf.get_default_graph()
             a = self._make_net(x, num_actions)
+
+            #import ipdb
+            #ipdb.set_trace()
+
             return tf.reshape(a, (-1, num_actions))
 
     def _make_net(self, x, num_actions):
