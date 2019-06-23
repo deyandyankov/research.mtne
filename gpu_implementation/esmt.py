@@ -37,6 +37,7 @@ import neuroevolution.models
 import tabular_logger as tlogger
 from threading import Lock
 import gym_tensorflow
+from tensorflow.python.tools import inspect_checkpoint as chkp
 
 
 class TrainingState(object):
@@ -208,6 +209,8 @@ def main(**exp):
         ConcurrentWorkers(make_env1, Model, batch_size=32)
     ]
 
+    saver = tf.train.Saver()
+
     tlogger.info('Start timing')
     tstart = time.time()
     tf_sess = tf.Session()
@@ -218,6 +221,10 @@ def main(**exp):
     workers[0].initialize(tf_sess)
     workers[1].initialize(tf_sess)
 
+#    meta_graph_def = tf.train.export_meta_graph(filename='/tmp/my-model.meta')
+
+    saver.save(tf_sess, "saver/model-0")
+    
     for iteration in range(exp['iterations']):
         tlogger.info("BEGINNING ITERATION: {}".format(iteration))
 
@@ -328,6 +335,9 @@ def main(**exp):
         save_pickle(iteration, log_dir, 'game1_elite_timestemps', test_timesteps)
 
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
+
+        saver.save(tf_sess, "saver/model-{}".format(state.it))
+
         state.it += 1
 
     os.kill(os.getpid(), signal.SIGTERM)
