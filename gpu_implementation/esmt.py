@@ -221,10 +221,6 @@ def main(**exp):
     workers[0].initialize(tf_sess)
     workers[1].initialize(tf_sess)
 
-#    meta_graph_def = tf.train.export_meta_graph(filename='/tmp/my-model.meta')
-
-    saver.save(tf_sess, "saver/model-0")
-    
     for iteration in range(exp['iterations']):
         tlogger.info("BEGINNING ITERATION: {}".format(iteration))
 
@@ -296,24 +292,33 @@ def main(**exp):
         noise_inds_n = game0_noise_inds_n + game1_noise_inds_n # concatenate the two lists
 
 
-        dx = proc_returns[:, 0]
-        dy = proc_returns[:, 1]
-        dist_squared = (np.ones(dx.shape) - np.abs(dx))**2 + (np.ones(dy.shape) - np.abs(dy))**2
-        top_n_rewards = dist_squared.argsort()[-100:][::-1]
-        batched_weighted_indices = (noise.get(idx, worker.model.num_params) for idx in noise_inds_n)
-        proc_returns = proc_returns[top_n_rewards, :]
-#        import ipdb
-#        ipdb.set_trace()
-        batched_weighted_args = {
-            'deltas': proc_returns[:, 0] - proc_returns[:, 1],
-            'indices': [myval for myidx, myval in enumerate(batched_weighted_indices) if myidx in top_n_rewards]
-        }
-        noise_inds_n = batched_weighted_args['indices']
-        g, count = batched_weighted_sum(batched_weighted_args['deltas'], batched_weighted_args['indices'], batch_size=len(batched_weighted_args['deltas']))
+# TOP 100 offspring
+#        dx = proc_returns[:, 0]
+#        dy = proc_returns[:, 1]
+#        dist_squared = (np.ones(dx.shape) - np.abs(dx))**2 + (np.ones(dy.shape) - np.abs(dy))**2
+#        top_n_rewards = dist_squared.argsort()[-100:][::-1]
+#        batched_weighted_indices = (noise.get(idx, worker.model.num_params) for idx in noise_inds_n)
+#        proc_returns = proc_returns[top_n_rewards, :]
+#        batched_weighted_args = {
+#            'deltas': proc_returns[:, 0] - proc_returns[:, 1],
+#            'indices': [myval for myidx, myval in enumerate(batched_weighted_indices) if myidx in top_n_rewards]
+#        }
+#        noise_inds_n = batched_weighted_args['indices']
+#        g, count = batched_weighted_sum(batched_weighted_args['deltas'], batched_weighted_args['indices'], batch_size=len(batched_weighted_args['deltas']))
+
+# ALL offspring
+        g, count = batched_weighted_sum(
+                proc_returns[:, 0] - proc_returns[:, 1],
+                (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
+                batch_size=500
+        )
 
         # NOTE: gradients are scaled by \theta
         returns_n2 = np.array([a.rewards for a in game0_results] + [a.rewards for a in game1_results])
-        returns_n2 = returns_n2[top_n_rewards]
+
+# Only if using top 100
+#        returns_n2 = returns_n2[top_n_rewards]
+
         g /= returns_n2.size
 
         assert g.shape == (worker.model.num_params,) and g.dtype == np.float32 and count == len(noise_inds_n)
@@ -336,7 +341,7 @@ def main(**exp):
 
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
 
-        saver.save(tf_sess, "saver/model-{}".format(state.it))
+        saver.save(tf_sess, "{}/model-{}".format(log_dir, state.it))
 
         state.it += 1
 

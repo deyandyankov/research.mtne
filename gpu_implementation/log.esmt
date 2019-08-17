@@ -1,0 +1,95 @@
+2019-05-30 23:14:36.558681: I tensorflow/core/platform/cpu_feature_guard.cc:140] Your CPU supports instructions that this TensorFlow binary was not compiled to use: AVX2 FMA
+2019-05-30 23:14:36.667468: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:898] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
+2019-05-30 23:14:36.668040: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1356] Found device 0 with properties: 
+name: GeForce GTX 960 major: 5 minor: 2 memoryClockRate(GHz): 1.2025
+pciBusID: 0000:07:00.0
+totalMemory: 3.95GiB freeMemory: 3.59GiB
+2019-05-30 23:14:36.668054: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1435] Adding visible gpu devices: 0
+2019-05-30 23:14:36.871567: I tensorflow/core/common_runtime/gpu/gpu_device.cc:923] Device interconnect StreamExecutor with strength 1 edge matrix:
+2019-05-30 23:14:36.871604: I tensorflow/core/common_runtime/gpu/gpu_device.cc:929]      0 
+2019-05-30 23:14:36.871610: I tensorflow/core/common_runtime/gpu/gpu_device.cc:942] 0:   N 
+2019-05-30 23:14:36.871789: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1053] Created TensorFlow device (/device:GPU:0 with 3325 MB memory) -> physical GPU (device: 0, name: GeForce GTX 960, pci bus id: 0000:07:00.0, compute capability: 5.2)
+05/30/2019 11:14:36 PM {
+    "episode_cutoff_mode": 5000,
+    "games": [
+        "riverraid",
+        "zaxxon"
+    ],
+    "iterations": 1001,
+    "l2coeff": 0.005,
+    "learn_option": "concat_rewards",
+    "learn_options": [
+        "concat_rewards",
+        "alternate_games",
+        "equal_prob_random_choice"
+    ],
+    "model": "ModelVirtualBN",
+    "mutation_power": 0.02,
+    "num_test_episodes": 400,
+    "num_validation_episodes": 30,
+    "optimizer": {
+        "args": {
+            "stepsize": 0.01
+        },
+        "type": "adam"
+    },
+    "population_size": 20,
+    "population_size_comment": "Must be divisible by 4",
+    "return_proc_mode": "centered_rank",
+    "timesteps": 5000000000.0
+}
+05/30/2019 11:14:36 PM Logging to: /home/mt/repos/research.mtne/gpu_implementation/logs/mtes_20190530_231436
+2019-05-30 23:14:44.068554: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1435] Adding visible gpu devices: 0
+2019-05-30 23:14:45.322611: I tensorflow/core/common_runtime/gpu/gpu_device.cc:923] Device interconnect StreamExecutor with strength 1 edge matrix:
+2019-05-30 23:14:45.322683: I tensorflow/core/common_runtime/gpu/gpu_device.cc:929]      0 
+2019-05-30 23:14:45.322708: I tensorflow/core/common_runtime/gpu/gpu_device.cc:942] 0:   N 
+2019-05-30 23:14:45.323001: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1053] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 3325 MB memory) -> physical GPU (device: 0, name: GeForce GTX 960, pci bus id: 0000:07:00.0, compute capability: 5.2)
+***Failed to unreference resources***
+2019-05-30 23:14:47.569504: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1435] Adding visible gpu devices: 0
+2019-05-30 23:14:47.569535: I tensorflow/core/common_runtime/gpu/gpu_device.cc:923] Device interconnect StreamExecutor with strength 1 edge matrix:
+2019-05-30 23:14:47.569556: I tensorflow/core/common_runtime/gpu/gpu_device.cc:929]      0 
+2019-05-30 23:14:47.569576: I tensorflow/core/common_runtime/gpu/gpu_device.cc:942] 0:   N 
+2019-05-30 23:14:47.569731: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1053] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 3325 MB memory) -> physical GPU (device: 0, name: GeForce GTX 960, pci bus id: 0000:07:00.0, compute capability: 5.2)
+***Failed to unreference resources***
+Sampling 250000000 random numbers with seed 123
+Loading shared noise from /tmp/sharednoisetable
+05/30/2019 11:14:49 PM Start timing
+2019-05-30 23:14:49.820315: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1435] Adding visible gpu devices: 0
+2019-05-30 23:14:49.820368: I tensorflow/core/common_runtime/gpu/gpu_device.cc:923] Device interconnect StreamExecutor with strength 1 edge matrix:
+2019-05-30 23:14:49.820374: I tensorflow/core/common_runtime/gpu/gpu_device.cc:929]      0 
+2019-05-30 23:14:49.820404: I tensorflow/core/common_runtime/gpu/gpu_device.cc:942] 0:   N 
+2019-05-30 23:14:49.820583: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1053] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 3325 MB memory) -> physical GPU (device: 0, name: GeForce GTX 960, pci bus id: 0000:07:00.0, compute capability: 5.2)
+05/30/2019 11:14:50 PM BEGINNING ITERATION: 0
+[deyan] _handle_output: (2, (31962861, 180.0, 309))
+[deyan] _handle_output: (4, (71533820, 400.0, 349))
+[deyan] _handle_output: (9, (194669611, 360.0, 339))
+[deyan] _handle_output: (6, (203409476, 290.0, 373))
+05/30/2019 11:14:55 PM Num timesteps: 4069 per second: 807.0 num episodes: 4
+[deyan] _handle_output: (3, (31962861, 550.0, 460))
+[deyan] _handle_output: (1, (120940630, 910.0, 507))
+[deyan] _handle_output: (8, (194669611, 1140.0, 515))
+[deyan] _handle_output: (0, (120940630, 1060.0, 642))
+[deyan] _handle_output: (7, (203409476, 1050.0, 641))
+[deyan] _handle_output: (5, (71533820, 1390.0, 709))
+05/30/2019 11:14:56 PM Done evaluating 10 episodes in 6.24 seconds
+05/30/2019 11:14:56 PM game0 rewards: 733.0
+05/30/2019 11:14:56 PM game0 eplens: [[642, 507], [309, 460], [349, 709], [373, 641], [515, 339]]
+05/30/2019 11:14:56 PM Saved /home/mt/repos/research.mtne/gpu_implementation/logs/mtes_20190530_231436/0000-game0_rewards.pkl
+05/30/2019 11:14:56 PM Saved /home/mt/repos/research.mtne/gpu_implementation/logs/mtes_20190530_231436/0000-game0_episode_lengths.pkl
+Traceback (most recent call last):
+  File "esmt.py", line 410, in <module>
+    main(**exp)
+  File "esmt.py", line 260, in main
+    iterator = iter(worker.monitor_eval(make_offspring(exp, noise, rs, worker, state, seeds_vector), max_frames=state.tslimit * 4))
+  File "/home/mt/repos/research.mtne/gpu_implementation/neuroevolution/concurrent_worker.py", line 183, in monitor_eval
+    time.sleep(0.1)
+KeyboardInterrupt
+Exception ignored in: <module 'threading' from '/usr/lib/python3.5/threading.py'>
+Traceback (most recent call last):
+  File "/usr/lib/python3.5/threading.py", line 1288, in _shutdown
+    t.join()
+  File "/usr/lib/python3.5/threading.py", line 1054, in join
+    self._wait_for_tstate_lock()
+  File "/usr/lib/python3.5/threading.py", line 1070, in _wait_for_tstate_lock
+    elif lock.acquire(block, timeout):
+KeyboardInterrupt

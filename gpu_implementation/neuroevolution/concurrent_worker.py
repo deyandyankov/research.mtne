@@ -27,6 +27,7 @@ from queue import Queue
 from multiprocessing.pool import ApplyResult
 from .distributed_helpers import AsyncWorker, WorkerHub, AsyncTaskHub
 
+
 class RLEvalutionWorker(AsyncWorker):
     def __init__(self, make_env_f, model, batch_size, device='/cpu:0', ref_batch=None):
         self.rlevaluationworker_uuid = uuid.uuid1()
@@ -142,7 +143,8 @@ class ConcurrentWorkers(object):
             self.workers = [RLEvalutionWorker(make_env_f, *args, ref_batch=ref_batch, **dict(kwargs, device=gpus[i])) for i in range(len(gpus))]
             self.model = self.workers[0].model
             self.steps_counter = sum([w.steps_counter for w in self.workers])
-            self.async_hub = AsyncTaskHub()
+#            self.async_hub = AsyncTaskHub()
+            self.async_hub = AsyncTaskHub(input_queue=Queue(8))
             self.hub = WorkerHub(self.workers, self.async_hub.input_queue, self.async_hub)
         # else:
         #     fake_worker = RLEvalutionWorker( * args, ** dict(kwargs, device=gpus[0]))
