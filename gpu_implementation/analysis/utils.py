@@ -5,20 +5,21 @@ import numpy as np
 import json
 import seaborn as sns
 import metrics
+from pathlib import Path
 
 def is_singletask(cfg):
     return cfg['games'][0] == cfg['games'][1]
 
-def get_config(logdir):
-    with open(str(logdir / "log.txt"), "r") as f:
+def get_config(exp):
+    log_filename = str(exp['dir'] / "log.txt")
+    with open(log_filename, "r") as f:
         data = f.read()
     config_data = data.find(" Logging to: ")
     config_data = data[0:config_data]
     config_data = config_data[23:]
     config_data = config_data[0:len(config_data)-23]
     config = json.loads(config_data)
-    config['logdir'] = logdir
-    config['iterations'] = max(get_iterations(logdir))
+    config['iterations'] = max(get_iterations(exp['dir']))
 
     return config
 
@@ -37,7 +38,9 @@ def get_iterations(logdir):
     iterations.sort()
     return iterations
 
-def plot_rewards(rewards, cfg):
+def plot_rewards(exp):
+    rewards = exp['rewards']
+    cfg = exp['cfg']
     sns.set(rc={'figure.figsize':(20, 10)})
     df = rewards.copy()
     df.set_index('iteration')
@@ -66,9 +69,10 @@ def compute_hv_value(rewards, cfg):
     points_PF_x, points_PF_y = metrics.f_true_PF_points(costs)
     HV_value = metrics.f_computeHypervolume(np.array([points_PF_x, points_PF_y]))
     return HV_value
-def get_rewards(cfg):
-    logdir = cfg['logdir']
-    last_iteration = cfg['iterations']
+
+def get_rewards(exp):
+    logdir = exp['dir']
+    last_iteration = exp['cfg']['iterations']
     rewards_df = pd.DataFrame(columns=['game0_rewards', 'game1_rewards', 'game0_elite', 'game1_elite', 'iteration'])
     for i in range(0, last_iteration):
         df = {
@@ -81,6 +85,7 @@ def get_rewards(cfg):
         rdf = pd.DataFrame.from_dict(df)
         rewards_df = pd.concat([rewards_df, rdf], sort=True)
 
+    cfg = exp['cfg']
     if is_singletask(cfg):
         game_callist = ['game0_rewards', 'game0_elite', 'iteration']
         rewards_df = rewards_df.loc[:, game_callist]
