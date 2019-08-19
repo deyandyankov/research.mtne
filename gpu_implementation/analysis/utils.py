@@ -49,26 +49,34 @@ def plot_rewards(exp):
     myplot.set(ylabel='Game score')
     return myplot.get_figure()
 
-def plot_pareto(rewards, cfg):
+def plot_pareto(exp):
+    rewards = exp['rewards']
+    cfg = exp['cfg']
     if is_singletask(cfg):
-        raise RuntimeWarning("Cannot run pareto on a single task experiment")
+        return None
     sns.set(rc={'figure.figsize': (20, 10)})
     df = rewards.copy()
-    cols = [cfg['games'][0] + '_rewards', cfg['games'][1] + '_rewards']
+    cols = [exp['type'] + '-' + cfg['games'][0] + '_rewards', exp['type'] + '-' + cfg['games'][1] + '_rewards']
     df = df.loc[:, cols]
     myplot = sns.scatterplot(x=df[cols[0]], y=df[cols[1]], data=df)
     myplot.set(title="Pareto")
     return myplot.get_figure()
 
-def compute_hv_value(rewards, cfg):
-    df = rewards.copy()
-    cols = [cfg['games'][0] + '_rewards', cfg['games'][1] + '_rewards']
-    df = df.loc[:, cols]
-    x, y = df[cols[0]], df[cols[1]]
-    costs = np.transpose(np.array([x, y]))
+def compute_pareto(rewards_game0, rewards_game1):
+    costs = np.transpose(np.array([rewards_game0, rewards_game1]))
     points_PF_x, points_PF_y = metrics.f_true_PF_points(costs)
+    return points_PF_x, points_PF_y
+
+def compute_hv_value(rewards_game0, rewards_game1):
+    points_PF_x, points_PF_y = compute_pareto(rewards_game0, rewards_game1)
     HV_value = metrics.f_computeHypervolume(np.array([points_PF_x, points_PF_y]))
     return HV_value
+
+def get_all_rewards_from_experiments(experiments):
+    ST_z = experiments['ST-zaxxon']['rewards']
+    ST_r = experiments['ST-riverraid']['rewards']
+    MT = experiments['MT']['rewards']
+    return ST_z.join(ST_r).join(MT)
 
 def get_rewards(exp):
     logdir = exp['dir']
@@ -89,15 +97,16 @@ def get_rewards(exp):
     if is_singletask(cfg):
         game_callist = ['game0_rewards', 'game0_elite', 'iteration']
         rewards_df = rewards_df.loc[:, game_callist]
-        rewards_df.columns = [cfg['games'][0] + '_rewards', cfg['games'][0] + '_elite', 'iteration']
+        rewards_df.columns = [exp['type'] + '-' + cfg['games'][0] + '_rewards', exp['type'] + '-' + cfg['games'][0] + '_elite', 'iteration']
     else:
         rewards_df.columns = [
-            cfg['games'][0] + '_rewards', cfg['games'][0] + '_elite',
-            cfg['games'][1] + '_rewards', cfg['games'][1] + '_elite',
+            exp['type'] + '-' + cfg['games'][0] + '_rewards', exp['type'] + '-' + cfg['games'][0] + '_elite',
+            exp['type'] + '-' + cfg['games'][1] + '_rewards', exp['type'] + '-' + cfg['games'][1] + '_elite',
             'iteration'
         ]
 
-    return rewards_df
+    rewawrds_df = rewards_df.loc[0:150, :]
+    return rewards_df.set_index('iteration')
 
 def get_iter_log(logdir, iteration, pickle_file):
     filename = logdir / "{:04d}-{}.pkl".format(iteration, pickle_file)

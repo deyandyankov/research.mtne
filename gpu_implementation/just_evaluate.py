@@ -37,7 +37,7 @@ import neuroevolution.models
 import tabular_logger as tlogger
 from threading import Lock
 import gym_tensorflow
-
+import pdb
 
 def f_isSingleTask(exp):
     # SDR: it checks whether we are using this code for single task learning
@@ -215,7 +215,7 @@ def main(**exp):
 
     def make_env0(b):
         return gym_tensorflow.make(game=exp["games"][0], batch_size=b)
- def make_env1(b):
+    def make_env1(b):
         return gym_tensorflow.make(game=exp["games"][1], batch_size=b)
 
 #    if f_isSingleTask(exp):
@@ -241,9 +241,14 @@ def main(**exp):
     workers[0].initialize(tf_sess)
     workers[1].initialize(tf_sess)
 
+    if not f_isSingleTask(exp):
+        raise RuntimeError("This script is only designed to run single task. Check your configuration and make sure both games have the same name")
+
     for iteration in range(exp['iterations']):
         tlogger.info("BEGINNING ITERATION: {}".format(iteration))
 
+        # override state using one from a previous run
+        state = load_pickle(iteration, exp['model_logdir'], "state")
 
         ##############
         ### GAME 0 ###
@@ -267,74 +272,13 @@ def main(**exp):
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
         game0_returns_n2 = np.array([a.rewards for a in game0_results])
         game0_noise_inds_n = [a.seeds for a in game0_results]
-        # tlogger.info("game0 rewards: {}".format(np.mean(game0_rewards)))
-        # tlogger.info("game0 eplens: {}".format(game0_episode_lengths))
+        tlogger.info("game0 rewards: {}".format(np.mean(game0_rewards)))
+        tlogger.info("game0 eplens: {}".format(np.mean(game0_episode_lengths)))
         save_pickle(iteration, log_dir, "game0_rewards", game0_rewards)
         save_pickle(iteration, log_dir, "game0_episode_lengths", game0_episode_lengths)
 
-        ##############
-        ### GAME 1 ###
-        ##############
-        if f_isSingleTask(exp):
-            game1_results = []
-            game1_rewards = []
-            game1_episode_lengths = []
-            game1_returns_n2 = game0_returns_n2
-            game1_noise_inds_n = game0_noise_inds_n
- else:
-            worker = workers[1]
-            frames_computed_so_far = tf_sess.run(worker.steps_counter)
-            game1_results = []
-            game1_rewards = []
-            game1_episode_lengths = []
-            seeds_vector = np.array(game0_noise_inds_n)
-            iterator = iter(worker.monitor_eval(make_offspring(exp, noise, rs, worker, state, seeds_vector), max_frames=state.tslimit * 4))
-
-            for pos_seeds, pos_reward, pos_length in iterator:
-                neg_seeds, neg_reward, neg_length = next(iterator)
-                assert pos_seeds == neg_seeds
-                result = Offspring(pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length])
-                rewards = result.rewards
-                game1_results.append(result)
-                game1_rewards.append(rewards)
-                game1_episode_lengths.append(result.ep_len)
-            state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
-            game1_returns_n2 = np.array([a.rewards for a in game1_results])
-            game1_noise_inds_n = [a.seeds for a in game1_results]
-            # tlogger.info("game1 rewards: {}".format(np.mean(game1_rewards)))
-            # tlogger.info("game1 eplens: {}".format(game0_episode_lengths))
-        save_pickle(iteration, log_dir, "game1_rewards", game1_rewards)
-        save_pickle(iteration, log_dir, "game1_episode_lengths", game1_episode_lengths)
-
         tlogger.info("Saving offsprings seeds")
-        save_pickle(iteration, log_dir, "offsprings_seeds", game1_noise_inds_n)
-
-        ####################
-        ### UPDATE THETA ###
-        ####################
-
-        if f_isSingleTask(exp):
-            proc_returns = compute_centered_ranks(game0_returns_n2)
-            noise_inds_n = game0_noise_inds_n
-        else:
-            game_returns = [game0_returns_n2, game1_returns_n2]
-            proc_returns = obtain_proc_returns(exp['learn_option'], game_returns)
-
-            assert game0_noise_inds_n == game1_noise_inds_n
-            noise_inds_n = game0_noise_inds_n + game1_noise_inds_n # concatenate the two lists
-
-        g, count = batched_weighted_sum(
-            proc_returns[:, 0] - proc_returns[:, 1],
-            (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
-            batch_size=500
-        )
-        # NOTE: gradients are scaled by \theta
-        returns_n2 = np.array([a.rewards for a in game0_results] + [a.rewards for a in game1_results])
-        g /= returns_n2.size
-
-        assert g.shape == (worker.model.num_params,) and g.dtype == np.float32 and count == len(noise_inds_n)
-        update_ratio, state.theta = state.optimizer.update(-g + exp['l2coeff'] * state.theta)
-
+        save_pickle(iteration, log_dir, "offsprings_seeds", game0_noise_inds_n)
         save_pickle(iteration, log_dir, "state", state)
 
         ######################
@@ -345,106 +289,12 @@ def main(**exp):
         save_pickle(iteration, log_dir, 'game0_elite', test_evals)
         save_pickle(iteration, log_dir, 'game0_elite_timestemps', test_timesteps)
 
-        if not(f_isSingleTask(exp)):
-            _, test_evals, test_timesteps = workers[1].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//2)[0]
-
-        tlogger.info("game1 elite: {}".format(np.mean(test_evals)))
-        save_pickle(iteration, log_dir, "game1_elite", test_evals)
-        save_pickle(iteration, log_dir, 'game1_elite_timestemps', test_timesteps)
-
         state.num_frames += tf_sess.run(worker.steps_counter) - frames_computed_so_far
         state.it += 1
 
     os.kill(os.getpid(), signal.SIGTERM)
 
-
-
-    #     while True:
-    #         tstart_iteration = time.time()
-    #         frames_computed_so_far = sess.run(worker.steps_counter)
-    #
-    #         tlogger.info('Evaluating perturbations')
-    #         iterator = iter(worker.monitor_eval(make_offspring(state), max_frames=state.tslimit * 4))
-    #         results = []
-    #
-    #         for pos_seeds, pos_reward, pos_length in iterator:
-    #             neg_seeds, neg_reward, neg_length = next(iterator)
-    #             assert pos_seeds == neg_seeds
-    #             results.append(Offspring(pos_seeds, [pos_reward, neg_reward], [pos_length, neg_length]))
-    #         state.num_frames += sess.run(worker.steps_counter) - frames_computed_so_far
-    #
-    #         state.it += 1
-    #         tlogger.record_tabular('Iteration', state.it)
-    #         tlogger.record_tabular('MutationPower', state.sample(state.mutation_power))
-    #         tlogger.record_tabular('TimestepLimitPerEpisode', state.tslimit)
-    #
-    #         # Trim unwanted results
-    #         results = results[:exp['population_size']//2]
-    #         assert len(results) == exp['population_size']//2
-    #         rewards = np.array([b for a in results for b in a.rewards])
-    #
-    #         results_timesteps = np.array([a.training_steps for a in results])
-    #         timesteps_this_iter = sum([a.training_steps for a in results])
-    #         state.timesteps_so_far += timesteps_this_iter
-    #
-    #         tlogger.record_tabular('PopulationEpRewMax', np.max(rewards))
-    #         tlogger.record_tabular('PopulationEpRewMean', np.mean(rewards))
-    #         tlogger.record_tabular('PopulationEpRewMedian', np.median(rewards))
-    #         tlogger.record_tabular('PopulationEpCount', len(rewards))
-    #         tlogger.record_tabular('PopulationTimesteps', timesteps_this_iter)
-    #
-    #         # Update Theta
-    #         returns_n2 = np.array([a.rewards for a in results])
-    #         noise_inds_n = [a.seeds for a in results]
-    #
-    #         if exp['return_proc_mode'] == 'centered_rank':
-    #             proc_returns_n2 = compute_centered_ranks(returns_n2)
-    #         else:
-    #             raise NotImplementedError(exp['return_proc_mode'])
-    #         # Compute and take step
-    #         g, count = batched_weighted_sum(
-    #             proc_returns_n2[:, 0] - proc_returns_n2[:, 1],
-    #             (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
-    #             batch_size=500
-    #         )
-    #         # NOTE: gradients are scaled by \theta
-    #         g /= returns_n2.size
-    #
-    #         assert g.shape == (worker.model.num_params,) and g.dtype == np.float32 and count == len(noise_inds_n)
-    #         update_ratio, state.theta = state.optimizer.update(-g + exp['l2coeff'] * state.theta)
-    #
-    #         time_elapsed_this_iter = time.time() - tstart_iteration
-    #         state.time_elapsed += time_elapsed_this_iter
-    #         tlogger.info('Evaluate elite')
-    #         _, test_evals, test_timesteps = worker.monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes'])[0]
-    #         test_timesteps = sum(test_timesteps)
-    #         # Log Results
-    #         tlogger.record_tabular('TestRewMean', np.mean(test_evals))
-    #         tlogger.record_tabular('TestRewMedian', np.median(test_evals))
-    #         tlogger.record_tabular('TestEpCount', len(test_evals))
-    #         tlogger.record_tabular('TestEpLenSum', test_timesteps)
-    #         tlogger.record_tabular('InitialRewMax', np.max(initial_performance))
-    #         tlogger.record_tabular('InitialRewMean', np.mean(initial_performance))
-    #         tlogger.record_tabular('InitialRewMedian', np.median(initial_performance))
-    #
-    #         tlogger.record_tabular('TimestepsThisIter', timesteps_this_iter)
-    #         tlogger.record_tabular('TimestepsPerSecondThisIter', timesteps_this_iter/(time.time()-tstart_iteration))
-    #         tlogger.record_tabular('TimestepsComputed', state.num_frames)
-    #         tlogger.record_tabular('TimestepsSoFar', state.timesteps_so_far)
-    #         tlogger.record_tabular('TimeElapsedThisIter', time_elapsed_this_iter)
-    #         tlogger.record_tabular('TimeElapsedThisIterTotal', time.time()-tstart_iteration)
-    #         tlogger.record_tabular('TimeElapsed', state.time_elapsed)
-    #         tlogger.record_tabular('TimeElapsedTotal', time.time()-all_tstart)
-    #
-    #         tlogger.dump_tabular()
-    #         fps = state.timesteps_so_far/(time.time() - tstart)
-    #         tlogger.info('Timesteps Per Second: {:.0f}. Elapsed: {:.2f}h ETA {:.2f}h'.format(fps, (time.time() - all_tstart) / 3600, (exp['timesteps'] - state.timesteps_so_far) / fps / 3600))
-    #
-    #         results.clear()
-    #
-    # print("Done with with(WorkerSession)")
-
 if __name__ == "__main__":
     with open(sys.argv[-1], 'r') as f:
         exp = json.loads(f.read())
-     main(**exp)
+    main(**exp)
