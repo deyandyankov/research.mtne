@@ -27,7 +27,7 @@ def get_iterations(logdir):
     iterations = []
     for i in logdir.iterdir():
         f = i.name
-        if not f.endswith('-game1_elite.pkl'):
+        if not f.endswith('-game0_elite.pkl'):
             continue
         itr = re.sub('^0*', '', f.split('-')[0])
         if itr == '':
@@ -78,17 +78,22 @@ def get_all_rewards_from_experiments(experiments):
     MT = experiments['MT']['rewards']
     return ST_z.join(ST_r).join(MT)
 
-def get_rewards(exp):
+def get_rewards(exp, iteration_limit=200):
     logdir = exp['dir']
     last_iteration = exp['cfg']['iterations']
     rewards_df = pd.DataFrame(columns=['game0_rewards', 'game1_rewards', 'game0_elite', 'game1_elite', 'iteration'])
     for i in range(0, last_iteration):
         df = {
             'game0_rewards': [np.mean(get_iter_log(logdir, i, 'game0_rewards'))],
-            'game1_rewards': [np.mean(get_iter_log(logdir, i, 'game1_rewards'))],
             'game0_elite': [np.mean(get_iter_log(logdir, i, 'game0_elite'))],
-            'game1_elite': [np.mean(get_iter_log(logdir, i, 'game1_elite'))]
         }
+        if is_singletask(exp['cfg']):
+            df['game1_rewards'] = df['game0_rewards']
+            df['game1_elite'] = df['game0_elite']
+        else:
+            df['game1_rewards'] = [np.mean(get_iter_log(logdir, i, 'game1_rewards'))]
+            df['game1_elite'] = [np.mean(get_iter_log(logdir, i, 'game1_elite'))]
+
         df['iteration'] = [i]
         rdf = pd.DataFrame.from_dict(df)
         rewards_df = pd.concat([rewards_df, rdf], sort=True)
@@ -105,7 +110,7 @@ def get_rewards(exp):
             'iteration'
         ]
 
-    rewawrds_df = rewards_df.loc[0:150, :]
+    rewawrds_df = rewards_df.loc[0:iteration_limit, :]
     return rewards_df.set_index('iteration')
 
 def get_iter_log(logdir, iteration, pickle_file):
