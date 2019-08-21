@@ -78,13 +78,11 @@ def get_all_rewards_from_experiments(experiments):
     MT = experiments['MT']['rewards']
     return ST_z.join(ST_r).join(MT)
 
-<<<<<<< HEAD
-def get_rewards(exp, iteration_limit=200):
-=======
 def get_rewards(exp):
->>>>>>> 3801d319750d296055109c9eb9fb040f9d348d23
     logdir = exp['dir']
     last_iteration = exp['cfg']['iterations']
+    iteration_limit = 200
+    
     rewards_df = pd.DataFrame(columns=['game0_rewards', 'game1_rewards', 'game0_elite', 'game1_elite', 'iteration'])
     for i in range(0, last_iteration):
         df = {
