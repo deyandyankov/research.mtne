@@ -81,7 +81,10 @@ def get_all_rewards_from_experiments(experiments):
 def get_rewards(exp):
     logdir = exp['dir']
     last_iteration = exp['cfg']['iterations']
-    iteration_limit = 200
+    iteration_limit = 201
+    print(str(exp['dir']))
+    if str(exp['dir']).endswith("evaluate_riverraid_using_zaxxon_model"):
+        last_iteration = 200
 
     rewards_df = pd.DataFrame(columns=['game0_rewards', 'game1_rewards', 'game0_elite', 'game1_elite', 'iteration'])
     for i in range(0, last_iteration):
@@ -112,7 +115,14 @@ def get_rewards(exp):
             'iteration'
         ]
 
-    rewawrds_df = rewards_df.loc[0:iteration_limit, :]
+    rewawrds_df = rewards_df.loc[0:last_iteration, :]
+
+    ### EXPLAIN WHY WE SET RESULTS OF 200 TO RESULTS OF 199 in evaluate_riverraid_Using_zaxxon_model
+    if str(exp['dir']).endswith("evaluate_riverraid_using_zaxxon_model"):
+        addrow = rewards_df.tail(1)
+        addrow.iteration = 200
+        rewards_df = rewards_df.append(addrow)
+
     return rewards_df.set_index('iteration')
 
 def get_iter_log(logdir, iteration, pickle_file):
