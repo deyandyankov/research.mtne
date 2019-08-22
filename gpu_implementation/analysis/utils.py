@@ -82,7 +82,7 @@ def get_rewards(exp):
     logdir = exp['dir']
     last_iteration = exp['cfg']['iterations']
     iteration_limit = 200
-    
+
     rewards_df = pd.DataFrame(columns=['game0_rewards', 'game1_rewards', 'game0_elite', 'game1_elite', 'iteration'])
     for i in range(0, last_iteration):
         df = {
