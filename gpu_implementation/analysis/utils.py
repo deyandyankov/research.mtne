@@ -1,3 +1,4 @@
+import scipy
 import pickle
 import re
 import pandas as pd
@@ -173,3 +174,35 @@ def compute_centered_ranks(x):
     y /= (x.size - 1)
     y -= .5
     return y
+
+def get_bins(min_val, max_val, bin_size):
+    return [i for i in range(int(min_val), int(max_val) + bin_size, bin_size)]
+
+def get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon, min_reward=0, max_reward=10000):
+    rewards = get_iter_log(cfg['dir'], iteration, 'game' + str(game_idx) + '_rewards')
+    rewards = np.array(list(map(lambda x: np.mean(x), rewards)))
+    bins = get_bins(min_reward, max_reward, bin_size)
+    rewards_per_bin = np.histogram(rewards, bins)[0]
+    original_proportion_rewards_per_bin = rewards_per_bin / rewards.shape[0]
+    epsilon_proportion_rewards_per_bin = original_proportion_rewards_per_bin + epsilon
+    proportion_rewards_per_bin = epsilon_proportion_rewards_per_bin / sum(epsilon_proportion_rewards_per_bin)
+    return proportion_rewards_per_bin
+
+def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon):
+    offspring = get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon)
+    parent = get_dkl_data(cfg, game_idx, int(iteration) - 1, bin_size, epsilon)
+    return scipy.stats.entropy(offspring, parent)
+
+def get_hypervolume_data(cfg, iterations=200):
+    paretos = []
+    for iteration in range(0, iterations):
+        game0_rewards = get_iter_log(cfg['dir'], iteration, 'game0_rewards');
+        other_game_index = 'game0_rewards' if cfg['cfg']['games'][0] == cfg['cfg']['games'][1] else 'game1_rewards'
+        game1_rewards = get_iter_log(cfg['dir'], iteration, other_game_index);
+        game0_rewards = np.array(list(map(lambda x: np.mean(x), game0_rewards)))
+        game1_rewards = np.array(list(map(lambda x: np.mean(x), game1_rewards)))
+        pareto_iteration = compute_hv_value(game0_rewards, game1_rewards)
+        paretos.append(pareto_iteration)
+    df = pd.DataFrame({'pareto': paretos})
+    df['iteration'] = list(range(0, iterations))
+    return df.set_index('iteration')
