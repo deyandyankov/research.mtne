@@ -202,16 +202,49 @@ def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, elite_or_rewards='r
     return scipy.stats.entropy(offspring, parent)
 
 
+def get_game_rewards(cfg, iterations=200):
+    res = []
+    for iteration in range(0, iterations):
+        game0_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir'], iteration, 'game0_rewards'))))
+        game1_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir'], iteration, 'game1_rewards'))))
+        res.append(pd.DataFrame({'iteration': iteration, 'game0_rewards': game0_rewards, 'game1_rewards': game1_rewards}))
+    return pd.concat(res)
+
 def get_hypervolume_data(cfg, iterations=200):
-    paretos = []
+    hvs = []
+    mean_game0_rewards = []
+    mean_game1_rewards = []
     for iteration in range(0, iterations):
         game0_rewards = get_iter_log(cfg['dir'], iteration, 'game0_rewards');
         other_game_index = 'game0_rewards' if cfg['cfg']['games'][0] == cfg['cfg']['games'][1] else 'game1_rewards'
         game1_rewards = get_iter_log(cfg['dir'], iteration, other_game_index);
         game0_rewards = np.array(list(map(lambda x: np.mean(x), game0_rewards)))
         game1_rewards = np.array(list(map(lambda x: np.mean(x), game1_rewards)))
-        pareto_iteration = compute_hv_value(game0_rewards, game1_rewards)
-        paretos.append(pareto_iteration)
-    df = pd.DataFrame({'pareto': paretos})
+        hv_iteration = compute_hv_value(game0_rewards, game1_rewards)
+        hvs.append(hv_iteration)
+        mean_game0_rewards.append(game0_rewards)
+        mean_game1_rewards.append(game1_rewards)
+    df = pd.DataFrame.from_dict({'hv': hvs, 'mean_game0_rewards': mean_game0_rewards, 'mean_game1_rewards': mean_game1_rewards})
+    df['iteration'] = list(range(0, iterations))
+    return df.set_index('iteration')
+
+def get_paretos(cfg, iterations=200):
+    game_rewards = get_game_rewards(cfg, iterations)
+    for index, row in game_rewards.iterrows():
+        print(row['c1'], row['c2'])
+    paretos = []
+    mean_game0_rewards = []
+    mean_game1_rewards = []
+    for iteration in range(0, iterations):
+        game0_rewards = get_iter_log(cfg['dir'], iteration, 'game0_rewards');
+        other_game_index = 'game0_rewards' if cfg['cfg']['games'][0] == cfg['cfg']['games'][1] else 'game1_rewards'
+        game1_rewards = get_iter_log(cfg['dir'], iteration, other_game_index);
+        game0_rewards = np.array(list(map(lambda x: np.mean(x), game0_rewards)))
+        game1_rewards = np.array(list(map(lambda x: np.mean(x), game1_rewards)))
+        hv_iteration = compute_hv_value(game0_rewards, game1_rewards)
+        hvs.append(hv_iteration)
+        mean_game0_rewards.append(game0_rewards)
+        mean_game1_rewards.append(game1_rewards)
+    df = pd.DataFrame.from_dict({'hv': hvs, 'mean_game0_rewards': mean_game0_rewards, 'mean_game1_rewards': mean_game1_rewards})
     df['iteration'] = list(range(0, iterations))
     return df.set_index('iteration')
