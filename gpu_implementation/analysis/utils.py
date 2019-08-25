@@ -117,12 +117,16 @@ def get_rewards(exp):
         ]
 
     rewawrds_df = rewards_df.loc[0:last_iteration, :]
-
-    ### EXPLAIN WHY WE SET RESULTS OF 200 TO RESULTS OF 199 in evaluate_riverraid_Using_zaxxon_model
-    if str(exp['dir']).endswith("evaluate_riverraid_using_zaxxon_model"):
+ 
+    ### EXPLAIN WHY WE SET RESULTS OF 200 TO RESULTS OF 199
+    if str(exp['dir']).endswith("evaluate_riverraid_using_zaxxon_model") or str(exp['dir']).endswith("evaluate_zaxxon_using_riverraid_model"):
         addrow = rewards_df.tail(1)
-        addrow.iteration = 200
+        addrow.iteration = max(addrow.iteration) + 1
         rewards_df = rewards_df.append(addrow)
+        addrow = rewards_df.tail(1)
+        addrow.iteration = max(addrow.iteration) + 1
+        rewards_df = rewards_df.append(addrow)
+    rewards_df = rewards_df[rewards_df.iteration < 201]
 
     return rewards_df.set_index('iteration')
 
@@ -178,8 +182,11 @@ def compute_centered_ranks(x):
 def get_bins(min_val, max_val, bin_size):
     return [i for i in range(int(min_val), int(max_val) + bin_size, bin_size)]
 
-def get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon, min_reward=0, max_reward=10000):
-    rewards = get_iter_log(cfg['dir'], iteration, 'game' + str(game_idx) + '_rewards')
+def get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon, elite_or_rewards='rewards', min_reward=0, max_reward=10000):
+    if elite_or_rewards not in ['elite', 'rewards']:
+        raise RuntimeError("elit_or_rewards must be elite or rewards")
+
+    rewards = get_iter_log(cfg['dir'], iteration, 'game' + str(game_idx) + '_' + elite_or_rewards)
     rewards = np.array(list(map(lambda x: np.mean(x), rewards)))
     bins = get_bins(min_reward, max_reward, bin_size)
     rewards_per_bin = np.histogram(rewards, bins)[0]
@@ -188,10 +195,12 @@ def get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon, min_reward=0, max_
     proportion_rewards_per_bin = epsilon_proportion_rewards_per_bin / sum(epsilon_proportion_rewards_per_bin)
     return proportion_rewards_per_bin
 
-def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon):
-    offspring = get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon)
-    parent = get_dkl_data(cfg, game_idx, int(iteration) - 1, bin_size, epsilon)
+def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, elite_or_rewards='rewards', from_0=False):
+    offspring = get_dkl_data(cfg, game_idx, int(iteration), bin_size, epsilon, elite_or_rewards)
+    parent_iteration = int(iteration) - 1 if from_0 == False else 0
+    parent = get_dkl_data(cfg, game_idx, parent_iteration, bin_size, epsilon, elite_or_rewards)
     return scipy.stats.entropy(offspring, parent)
+
 
 def get_hypervolume_data(cfg, iterations=200):
     paretos = []
