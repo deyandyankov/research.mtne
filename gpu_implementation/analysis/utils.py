@@ -206,7 +206,10 @@ def get_game_rewards(cfg, iterations=200):
     res = []
     for iteration in range(0, iterations):
         game0_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir'], iteration, 'game0_rewards'))))
-        game1_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir'], iteration, 'game1_rewards'))))
+        if 'dir_competitor' in cfg.keys():
+            game1_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir_competitor'], iteration, 'game0_rewards'))))
+        else:
+            game1_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir'], iteration, 'game1_rewards'))))
         res.append(pd.DataFrame({'iteration': iteration, 'game0_rewards': game0_rewards, 'game1_rewards': game1_rewards}))
     return pd.concat(res)
 
