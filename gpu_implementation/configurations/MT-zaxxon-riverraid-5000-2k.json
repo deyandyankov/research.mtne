@@ -1,0 +1,29 @@
+{
+    "episode_cutoff_mode": 5000,
+    "games": [
+        "zaxxon",
+        "riverraid"
+    ],
+    "iterations": 2001,
+    "l2coeff": 0.005,
+    "learn_option": "concat_rewards",
+    "learn_options": [
+        "concat_rewards",
+        "alternate_games",
+        "equal_prob_random_choice"
+    ],
+    "model": "ModelVirtualBN",
+    "mutation_power": 0.02,
+    "num_test_episodes": 400,
+    "num_validation_episodes": 30,
+    "optimizer": {
+        "args": {
+            "stepsize": 0.01
+        },
+        "type": "adam"
+    },
+    "population_size": 10000,
+    "population_size_comment": "Must be divisible by 4",
+    "return_proc_mode": "centered_rank",
+    "timesteps": 1e1000
+}
