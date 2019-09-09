@@ -83,7 +83,7 @@ def get_rewards(exp):
     logdir = exp['dir']
     last_iteration = exp['cfg']['iterations']
     iteration_limit = 201
-    print(str(exp['dir']))
+
     if str(exp['dir']).endswith("evaluate_riverraid_using_zaxxon_model"):
         last_iteration = 200
 
@@ -195,9 +195,11 @@ def get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon, elite_or_rewards='
     proportion_rewards_per_bin = epsilon_proportion_rewards_per_bin / sum(epsilon_proportion_rewards_per_bin)
     return proportion_rewards_per_bin
 
-def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, elite_or_rewards='rewards', from_0=False):
+def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, iteration_lag=1, elite_or_rewards='rewards'):
     offspring = get_dkl_data(cfg, game_idx, int(iteration), bin_size, epsilon, elite_or_rewards)
-    parent_iteration = int(iteration) - 1 if from_0 == False else 0
+    parent_iteration = int(iteration) - iteration_lag
+    if parent_iteration < 0:
+        parent_iteration = 0
     parent = get_dkl_data(cfg, game_idx, parent_iteration, bin_size, epsilon, elite_or_rewards)
     return scipy.stats.entropy(offspring, parent)
 
