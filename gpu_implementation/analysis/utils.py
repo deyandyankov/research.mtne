@@ -84,6 +84,9 @@ def get_rewards(exp):
     last_iteration = exp['cfg']['iterations']
     iteration_limit = 201
 
+    if str(exp['dir']).endswith('MT-zaxxon-riverraid-50000'):
+        iteration_limit = 801
+
     if str(exp['dir']).endswith("evaluate_riverraid_using_zaxxon_model"):
         last_iteration = 200
 
@@ -126,7 +129,7 @@ def get_rewards(exp):
         addrow = rewards_df.tail(1)
         addrow.iteration = max(addrow.iteration) + 1
         rewards_df = rewards_df.append(addrow)
-    rewards_df = rewards_df[rewards_df.iteration < 201]
+    rewards_df = rewards_df[rewards_df.iteration < last_iteration]
 
     return rewards_df.set_index('iteration')
 
