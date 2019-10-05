@@ -227,8 +227,8 @@ def main(**exp):
 #        ]
 
     workers = [
-        ConcurrentWorkers(make_env0, Model, batch_size=32*(1+f_isSingleTask(exp))),
-        ConcurrentWorkers(make_env1, Model, batch_size=32*(1-f_isSingleTask(exp)))
+        ConcurrentWorkers(make_env0, Model, batch_size=256),
+        ConcurrentWorkers(make_env1, Model, batch_size=256)
     ]
 
     tlogger.info('Start timing')
