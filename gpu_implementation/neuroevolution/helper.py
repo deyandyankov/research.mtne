@@ -35,7 +35,7 @@ class SharedNoiseTable(object):
         self.noise = np.ctypeslib.as_array(self._shared_mem.get_obj())
         assert self.noise.dtype == np.float32
         sharednoisetablefile = "/tmp/sharednoisetable"
-        if False or os.path.isfile(sharednoisetablefile):
+        if False: #os.path.isfile(sharednoisetablefile):
             print("Loading shared noise from {}".format(sharednoisetablefile))
             with open(sharednoisetablefile, 'rb') as fh:
                 self.noise[:] = pickle.load(fh)
