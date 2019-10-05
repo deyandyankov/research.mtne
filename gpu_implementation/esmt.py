@@ -205,8 +205,8 @@ def main(**exp):
         return gym_tensorflow.make(game=exp["games"][1], batch_size=b)
 
     workers = [
-        ConcurrentWorkers(make_env0, Model, batch_size=256),
-        ConcurrentWorkers(make_env1, Model, batch_size=256)
+        ConcurrentWorkers(make_env0, Model, batch_size=128),
+        ConcurrentWorkers(make_env1, Model, batch_size=128)
     ]
 
     saver = tf.train.Saver()
