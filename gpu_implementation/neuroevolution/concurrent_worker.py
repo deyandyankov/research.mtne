@@ -30,6 +30,7 @@ from .distributed_helpers import AsyncWorker, WorkerHub, AsyncTaskHub
 
 class RLEvalutionWorker(AsyncWorker):
     def __init__(self, make_env_f, model, batch_size, device='/cpu:0', ref_batch=None):
+        self.make_env_f = make_env_f
         self.rlevaluationworker_uuid = uuid.uuid1()
         self.batch_size = batch_size
         
