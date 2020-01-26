@@ -1,6 +1,7 @@
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import ijcnn_getters
 
 def rewards(exp):
@@ -12,16 +13,16 @@ def rewards(exp):
     p.set(ylabel='Score')
     p.set(xlabel='Epoch')
 
-def frames_vs_score(exp, game_idx):
+def frames_vs_score(exp, game_idx, iterations=200):
     config, rewards_eplen = exp['cfg'], exp['rewards_eplen']
     game_name = ijcnn_getters.get_game_name(config, game_idx)
-    sns.set(rc={'figure.figsize':(20, 10)})
-    df = rewards_eplen.copy()
+    sns.set(rc={'figure.figsize':(8, 5)})
+    df = rewards_eplen.copy().query('iteration <= ' + str(iterations))
     df['Epoch'] = df['iteration']
     p = sns.scatterplot(x='eplen', y='reward', hue='Epoch', data=df.query('game == ' + str(game_idx)))
     p.set(title=game_name + ' frames vs. score')
-    p.set(ylabel='Number of frames')
-    p.set(xlabel='Score')
+    p.set(ylabel='Score')
+    p.set(xlabel='Number of frames')
 
 def hypervolume(hv_df, iterations=200):
     sns.set(rc={'figure.figsize': (8, 5)})
@@ -42,3 +43,12 @@ def outperformer(df, iterations, title):
     p.set_title(title + "\n")
     p.set_xlim([0, iterations])
     p.set_ylabel('Percentage of Offspring')
+    
+
+def raw_score_threshold(df, yname, threshold, iterations=200):
+    sns.set(rc={'figure.figsize':(20, 10)})
+#     df = df.set_index('epoch')
+    p = sns.scatterplot(x='epoch', y=yname, data=df)
+    p.set(ylabel='Score')
+    p.set(xlabel='Epoch')
+    p.hlines(threshold, 0, iterations) # draw threshold across 0:iterations

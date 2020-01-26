@@ -122,6 +122,7 @@ def get_hypervolume(experiments, iterations):
     hv_df = pd.DataFrame.from_dict(df_dict)
     return hv_df
 
+
 # thresholds from https://arxiv.org/pdf/1703.03864.pdf
 def get_outerperformer_data(mt_exp, iterations, game0_threshold=6380, game1_threshold=5009):
     threshold_results = []
@@ -146,3 +147,34 @@ def get_outerperformer_data(mt_exp, iterations, game0_threshold=6380, game1_thre
     df = df_breached.fillna(0)
     df['epoch'] = df.index
     return df
+
+
+def get_raw_offspring(exp, game_idx, iterations=200):
+    logdir = exp['dir']
+    orig_column_name = 'game' + str(game_idx) + '_rewards'
+    column_name = 'game' + str(game_idx) + '_offspring'
+    rewards = pd.DataFrame(columns=[column_name, 'epoch'])
+    for i in range(0, iterations):
+        df = {
+            column_name: get_iter_log(logdir, i, orig_column_name)
+        }
+        df['epoch'] = i
+        rdf = pd.DataFrame.from_dict(df)
+        rewards = pd.concat([rewards, rdf], sort=True)
+    rewards = df_change_game_names(exp['cfg'], rewards)
+    return rewards
+
+def get_raw_parent(exp, game_idx, iterations=200):
+    logdir = exp['dir']
+    orig_column_name = 'game' + str(game_idx) + '_elite'
+    column_name = 'game' + str(game_idx) + '_parent'
+    rewards = pd.DataFrame(columns=[column_name, 'epoch'])
+    for i in range(0, iterations):
+        df = {
+            column_name: get_iter_log(logdir, i, orig_column_name)
+        }
+        df['epoch'] = i
+        rdf = pd.DataFrame.from_dict(df)
+        rewards = pd.concat([rewards, rdf], sort=True)
+    rewards = df_change_game_names(exp['cfg'], rewards)
+    return rewards

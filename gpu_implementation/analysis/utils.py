@@ -191,7 +191,11 @@ def get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon, elite_or_rewards='
         raise RuntimeError("elit_or_rewards must be elite or rewards")
 
     rewards = get_iter_log(cfg['dir'], iteration, 'game' + str(game_idx) + '_' + elite_or_rewards)
-    rewards = np.array(list(map(lambda x: np.mean(x), rewards)))
+    rewards = np.array(rewards)
+    if elite_or_rewards == 'rewards':
+        rewards0 = np.array(list(map(lambda x: x[0], rewards)))
+        rewards1 = np.array(list(map(lambda x: x[1], rewards)))
+        rewards = np.concatenate([rewards0, rewards1])
     bins = get_bins(min_reward, max_reward, bin_size)
     rewards_per_bin = np.histogram(rewards, bins)[0]
     original_proportion_rewards_per_bin = rewards_per_bin / rewards.shape[0]
@@ -208,6 +212,7 @@ def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, iteration_lag=-1, e
     if parent_iteration < 0:
         parent_iteration = 0
     parent = get_dkl_data(cfg, game_idx, parent_iteration, bin_size, epsilon, elite_or_rewards)
+#     print(offspring.shape, parent.shape)
     return scipy.stats.entropy(offspring, parent)
 
 
