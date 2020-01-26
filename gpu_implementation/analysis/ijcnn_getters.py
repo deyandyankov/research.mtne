@@ -121,3 +121,28 @@ def get_hypervolume(experiments, iterations):
         df_dict[exp_name] = utils.get_hypervolume_data(exp, iterations)['hv']
     hv_df = pd.DataFrame.from_dict(df_dict)
     return hv_df
+
+# thresholds from https://arxiv.org/pdf/1703.03864.pdf
+def get_outerperformer_data(mt_exp, iterations, game0_threshold=6380, game1_threshold=5009):
+    threshold_results = []
+
+    for i in range(0, iterations):
+        g0r = utils.get_iter_log(mt_exp['dir'], i, 'game0_rewards')
+        g1r = utils.get_iter_log(mt_exp['dir'], i, 'game1_rewards')
+        g0r_flat = [item for sublist in g0r for item in sublist]
+        g1r_flat = [item for sublist in g1r for item in sublist]
+
+        for reward_index in range(0, len(g0r_flat)):
+            reward_0 = g0r_flat[reward_index]
+            reward_1 = g1r_flat[reward_index]
+            if reward_0 > game0_threshold and reward_1 > game1_threshold:
+                threshold_results.append({'iteration': i, 'offspring_index': reward_index, 'zaxxon': reward_0, 'riverraid': reward_1})
+    exceeded_threshold = pd.DataFrame(threshold_results)
+    df_zeros = pd.DataFrame([{'breached': 0} for i in range(0, iterations)])
+    df_breached = exceeded_threshold.groupby('iteration').count()
+    df_breached = df_breached[['offspring_index']]
+    df = pd.merge(df_zeros, df_breached, how='left', left_index=True, right_index=True)
+    df_breached = pd.DataFrame({'threshold_breached': (df['offspring_index'] / (mt_exp['cfg']['population_size']/2) * 100)})
+    df = df_breached.fillna(0)
+    df['epoch'] = df.index
+    return df

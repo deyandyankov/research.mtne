@@ -199,9 +199,12 @@ def get_dkl_data(cfg, game_idx, iteration, bin_size, epsilon, elite_or_rewards='
     proportion_rewards_per_bin = epsilon_proportion_rewards_per_bin / sum(epsilon_proportion_rewards_per_bin)
     return proportion_rewards_per_bin
 
-def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, iteration_lag=1, elite_or_rewards='rewards'):
+def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, iteration_lag=-1, elite_or_rewards='rewards'):
     offspring = get_dkl_data(cfg, game_idx, int(iteration), bin_size, epsilon, elite_or_rewards)
-    parent_iteration = int(iteration) - iteration_lag
+    if iteration_lag == -1:
+        parent_iteration = 0
+    else:
+        parent_iteration = int(iteration) - iteration_lag
     if parent_iteration < 0:
         parent_iteration = 0
     parent = get_dkl_data(cfg, game_idx, parent_iteration, bin_size, epsilon, elite_or_rewards)

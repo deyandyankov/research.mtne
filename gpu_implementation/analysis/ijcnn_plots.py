@@ -24,7 +24,7 @@ def frames_vs_score(exp, game_idx):
     p.set(xlabel='Score')
 
 def hypervolume(hv_df, iterations=200):
-    sns.set(rc={'figure.figsize': (5, 4)})
+    sns.set(rc={'figure.figsize': (8, 5)})
     hv_df['Epoch'] = range(0, iterations)
     hv_df.set_index('Epoch')
     del hv_df['Epoch']
@@ -34,3 +34,11 @@ def hypervolume(hv_df, iterations=200):
     p.set_title('Hypervolume of offspring')
     p.set_ylabel('Hypervolume')
     p.set_xlim([0, 200])
+
+def outperformer(df, iterations, title):
+    sns.set(rc={'figure.figsize': (4, 3)})
+    sns.set_style('white')
+    p = sns.lineplot(x='epoch', y='threshold_breached', data=df)
+    p.set_title(title + "\n")
+    p.set_xlim([0, iterations])
+    p.set_ylabel('Percentage of Offspring')
