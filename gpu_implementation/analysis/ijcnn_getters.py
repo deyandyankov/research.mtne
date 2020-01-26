@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 import pickle
+import utils
 
 def get_iterations(logdir):
     iterations = []
@@ -38,39 +39,6 @@ def get_iter_logs(logdir, iteration):
         df[loadfile] = get_iter_log(logdir, iteration, loadfile)
     return df
 
-def unit_vector(vector):
-    """ Returns the unit vector of the vector.  """
-    return vector / np.linalg.norm(vector)
-
-def angle_between(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2'::
-
-            >>> angle_between((1, 0, 0), (0, 1, 0))
-            1.5707963267948966
-            >>> angle_between((1, 0, 0), (1, 0, 0))
-            0.0
-            >>> angle_between((1, 0, 0), (-1, 0, 0))
-            3.141592653589793
-    """
-    v1_u = unit_vector(v1)
-    v2_u = unit_vector(v2)
-    return np.rad2deg(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
-
-def compute_ranks(x):
-    """
-    Returns ranks in [0, len(x))
-    Note: This is different from scipy.stats.rankdata, which returns ranks in [1, len(x)].
-    """
-    assert x.ndim == 1
-    ranks = np.empty(len(x), dtype=int)
-    ranks[x.argsort()] = np.arange(len(x))
-    return ranks
-
-def compute_centered_ranks(x):
-    y = compute_ranks(x.ravel()).reshape(x.shape).astype(np.float32)
-    y /= (x.size - 1)
-    y -= .5
-    return y
 
 def get_config_body(logdir):
     with open(str(logdir / "log.txt"), "r") as f:
@@ -81,6 +49,7 @@ def get_config_body(logdir):
 def get_config(logdir):
     config = json.loads(get_config_body(logdir)[23:-23])
     config['logdir'] = logdir
+    config['dir'] = logdir
     config['iterations'] = get_iterations(logdir)
     config['last_iteration'] = get_last_iteration(config['iterations'])
     return config
@@ -99,24 +68,26 @@ def df_change_game_names(config, df):
             df.rename(columns={col: col.replace('game1', get_game_name(config, 1))}, inplace=True)
     return df
 
-def get_rewards(config):
-    logdir, iterations = config['logdir'], config['iterations']
+def get_rewards(exp):
+    logdir, iterations = exp['dir'], exp['cfg']['iterations']
     rewards = pd.DataFrame(columns=['game0_rewards', 'game1_rewards', 'game0_parent_mean', 'game1_parent_mean', 'iteration'])
     for i in iterations:
         df = {
             'game0_rewards': [np.mean(get_iter_log(logdir, i, 'game0_rewards'))],
-            'game1_rewards': [np.mean(get_iter_log(logdir, i, 'game1_rewards'))],
             'game0_parent_mean': [np.mean(get_iter_log(logdir, i, 'game0_elite'))],
-            'game1_parent_mean': [np.mean(get_iter_log(logdir, i, 'game1_elite'))]
         }
+        if exp['type'] == 'MT':
+            df['game1_rewards'] = [np.mean(get_iter_log(logdir, i, 'game1_rewards'))]
+            df['game1_parent_mean'] = [np.mean(get_iter_log(logdir, i, 'game1_elite'))]
+
         df['iteration'] = [i]
         rdf = pd.DataFrame.from_dict(df)
         rewards = pd.concat([rewards, rdf], sort=True)
-    rewards = df_change_game_names(config, rewards)
+    rewards = df_change_game_names(exp['cfg'], rewards)
     return rewards
 
-def get_rewards_eplen(config):
-    logdir, last_iteration = config['logdir'], config['last_iteration']
+def get_rewards_eplen(exp):
+    logdir, last_iteration = exp['dir'], exp['cfg']['last_iteration']
     rewards_eplen = pd.DataFrame(columns=['eplen', 'reward', 'iteration'])
     for i in range(last_iteration):
         df = {
@@ -127,13 +98,26 @@ def get_rewards_eplen(config):
         edf0['game'] = [0] * edf0['eplen'].shape[0]
         edf0['iteration'] = [i] * edf0['eplen'].shape[0]
 
-        df = {
-            'eplen': np.array(get_iter_log(logdir, i, 'game1_episode_lengths')).flatten(),
-            'reward': np.array(get_iter_log(logdir, i, 'game1_rewards')).flatten()
-        }
-        edf1 = pd.DataFrame.from_dict(df)
-        edf1['game'] = [1] * edf1['eplen'].shape[0]
-        edf1['iteration'] = [float(i)] * edf1['eplen'].shape[0]
+        if exp['type'] == 'MT':
+            df = {
+                'eplen': np.array(get_iter_log(logdir, i, 'game1_episode_lengths')).flatten(),
+                'reward': np.array(get_iter_log(logdir, i, 'game1_rewards')).flatten()
+            }
+            edf1 = pd.DataFrame.from_dict(df)
+            edf1['game'] = [1] * edf1['eplen'].shape[0]
+            edf1['iteration'] = [float(i)] * edf1['eplen'].shape[0]
 
-        rewards_eplen = pd.concat([rewards_eplen, edf0, edf1], sort=True)
+        if exp['type'] == 'MT':
+            rewards_eplen = pd.concat([rewards_eplen, edf0, edf1], sort=True)
+        
+        if exp['type'] == 'ST':
+            rewards_eplen = pd.concat([rewards_eplen, edf0], sort=True)
+            
     return rewards_eplen
+
+def get_hypervolume(experiments, iterations):
+    df_dict = {}
+    for exp_name, exp in experiments.items():
+        df_dict[exp_name] = utils.get_hypervolume_data(exp, iterations)['hv']
+    hv_df = pd.DataFrame.from_dict(df_dict)
+    return hv_df

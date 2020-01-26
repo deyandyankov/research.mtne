@@ -20,7 +20,8 @@ def get_config(exp):
     config_data = config_data[23:]
     config_data = config_data[0:len(config_data)-23]
     config = json.loads(config_data)
-    config['iterations'] = max(get_iterations(exp['dir']))
+    config['iterations'] = get_iterations(exp['dir'])
+    config['last_iteration'] = config['iterations'][-1]
 
     return config
 
@@ -218,14 +219,14 @@ def get_game_rewards(cfg, iterations=200):
         res.append(pd.DataFrame({'iteration': iteration, 'game0_rewards': game0_rewards, 'game1_rewards': game1_rewards}))
     return pd.concat(res)
 
-def get_hypervolume_data(cfg, iterations=200):
+def get_hypervolume_data(exp, iterations=200):
     hvs = []
     mean_game0_rewards = []
     mean_game1_rewards = []
     for iteration in range(0, iterations):
-        game0_rewards = get_iter_log(cfg['dir'], iteration, 'game0_rewards');
-        other_game_index = 'game0_rewards' if cfg['cfg']['games'][0] == cfg['cfg']['games'][1] else 'game1_rewards'
-        game1_rewards = get_iter_log(cfg['dir'], iteration, other_game_index);
+        game0_rewards = get_iter_log(exp['dir'], iteration, 'game0_rewards');
+        other_game_index = 'game0_rewards' if exp['cfg']['games'][0] == exp['cfg']['games'][1] else 'game1_rewards'
+        game1_rewards = get_iter_log(exp['dir'], iteration, other_game_index);
         game0_rewards = np.array(list(map(lambda x: np.mean(x), game0_rewards)))
         game1_rewards = np.array(list(map(lambda x: np.mean(x), game1_rewards)))
         hv_iteration = compute_hv_value(game0_rewards, game1_rewards)
@@ -233,8 +234,8 @@ def get_hypervolume_data(cfg, iterations=200):
         mean_game0_rewards.append(game0_rewards)
         mean_game1_rewards.append(game1_rewards)
     df = pd.DataFrame.from_dict({'hv': hvs, 'mean_game0_rewards': mean_game0_rewards, 'mean_game1_rewards': mean_game1_rewards})
-    df['iteration'] = list(range(0, iterations))
-    return df.set_index('iteration')
+    df['Epoch'] = list(range(0, iterations))
+    return df.set_index('Epoch')
 
 def get_paretos(cfg, iterations=200):
     game_rewards = get_game_rewards(cfg, iterations)
