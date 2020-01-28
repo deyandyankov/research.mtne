@@ -115,10 +115,10 @@ def get_rewards_eplen(exp):
             
     return rewards_eplen
 
-def get_hypervolume(experiments, iterations):
+def get_hypervolume(experiments, rewards_or_elite='rewards', iterations=200):
     df_dict = {}
     for exp_name, exp in experiments.items():
-        df_dict[exp_name] = utils.get_hypervolume_data(exp, iterations)['hv']
+        df_dict[exp_name] = utils.get_hypervolume_data(exp, rewards_or_elite, iterations)['hv']
     hv_df = pd.DataFrame.from_dict(df_dict)
     return hv_df
 

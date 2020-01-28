@@ -237,28 +237,32 @@ def get_game_rewards(cfg, iterations=200):
         res.append(pd.DataFrame({'iteration': iteration, 'game0_rewards': game0_rewards, 'game1_rewards': game1_rewards}))
     return pd.concat(res)
 
-def get_hypervolume_data(exp, iterations=200):
+def get_hypervolume_data(exp, rewards_or_elite='rewards', iterations=200):
+    game0_key = 'game0_' + rewards_or_elite
+    game1_key = 'game1_' + rewards_or_elite
+    
     hvs = []
     mean_game0_rewards = []
     mean_game1_rewards = []
     for iteration in range(0, iterations):
-        game0_rewards = get_iter_log(exp['dir'], iteration, 'game0_rewards');
-        other_game_index = 'game0_rewards' if exp['cfg']['games'][0] == exp['cfg']['games'][1] else 'game1_rewards'
+        game0_rewards = get_iter_log(exp['dir'], iteration, game0_key)
+        other_game_index = game0_key if exp['cfg']['games'][0] == exp['cfg']['games'][1] else game1_key
         game1_rewards = get_iter_log(exp['dir'], iteration, other_game_index)
         
-        game0_rewards0 = np.array(list(map(lambda x: x[0], game0_rewards)))
-        game0_rewards1 = np.array(list(map(lambda x: x[1], game0_rewards)))
-        game0_rewards = np.concatenate([game0_rewards0, game0_rewards1])
+        if rewards_or_elite == 'rewards':
+            game0_rewards0 = np.array(list(map(lambda x: x[0], game0_rewards)))
+            game0_rewards1 = np.array(list(map(lambda x: x[1], game0_rewards)))
+            game0_rewards = np.concatenate([game0_rewards0, game0_rewards1])
 
-        game1_rewards0 = np.array(list(map(lambda x: x[0], game1_rewards)))
-        game1_rewards1 = np.array(list(map(lambda x: x[1], game1_rewards)))
-        game1_rewards = np.concatenate([game1_rewards0, game1_rewards1])
-        
+            game1_rewards0 = np.array(list(map(lambda x: x[0], game1_rewards)))
+            game1_rewards1 = np.array(list(map(lambda x: x[1], game1_rewards)))
+            game1_rewards = np.concatenate([game1_rewards0, game1_rewards1])
+            
         hv_iteration = compute_hv_value(game0_rewards, game1_rewards)
         hvs.append(hv_iteration)
         mean_game0_rewards.append(game0_rewards)
         mean_game1_rewards.append(game1_rewards)
-    df = pd.DataFrame.from_dict({'hv': hvs, 'mean_game0_rewards': mean_game0_rewards, 'mean_game1_rewards': mean_game1_rewards})
+    df = pd.DataFrame.from_dict({'hv': hvs, 'mean_' + game0_key: mean_game0_rewards, 'mean_' + game1_key: mean_game1_rewards})
     df['Epoch'] = list(range(0, iterations))
     return df.set_index('Epoch')
 

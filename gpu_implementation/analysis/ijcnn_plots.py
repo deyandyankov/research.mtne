@@ -4,6 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ijcnn_getters
 
+def save_plot(p, filename):
+    p.get_figure().savefig('ijcnn_plots/{}.eps'.format(filename))
+    p.get_figure().savefig('ijcnn_plots/{}.png'.format(filename))
+
 def rewards(exp):
     ### plot: Game0 and Game1 score and elite score
     config, rewards = exp['cfg'], exp['rewards']
@@ -24,6 +28,7 @@ def frames_vs_score(exp, game_idx, iterations=200):
     p.set(title=game_name + ' frames vs. score')
     p.set(ylabel='Score')
     p.set(xlabel='Number of frames')
+    return p
 
 def hypervolume(hv_df, iterations=200):
     sns.set(rc={'figure.figsize': (8, 5)})
@@ -36,6 +41,7 @@ def hypervolume(hv_df, iterations=200):
     p.set_title('Hypervolume of offspring')
     p.set_ylabel('Hypervolume')
     p.set_xlim([0, 200])
+    return p
 
 def outperformer(df, iterations, title):
     sns.set(rc={'figure.figsize': (4, 3)})
@@ -44,6 +50,7 @@ def outperformer(df, iterations, title):
     p.set_title(title + "\n")
     p.set_xlim([0, iterations])
     p.set_ylabel('Percentage of Offspring')
+    return p
     
 
 def raw_score_threshold(df, yname, threshold, iterations=200):
@@ -53,3 +60,4 @@ def raw_score_threshold(df, yname, threshold, iterations=200):
     p.set(ylabel='Score')
     p.set(xlabel='Epoch')
     p.hlines(threshold, 0, iterations) # draw threshold across 0:iterations
+    return p
