@@ -156,13 +156,14 @@ def get_raw_offspring(exp, game_idx, iterations=200):
     rewards = pd.DataFrame(columns=[column_name, 'epoch'])
     for i in range(0, iterations):
         df = {
-            column_name: get_iter_log(logdir, i, orig_column_name)
+            column_name: np.array(get_iter_log(logdir, i, orig_column_name)).flatten()
         }
         df['epoch'] = i
         rdf = pd.DataFrame.from_dict(df)
         rewards = pd.concat([rewards, rdf], sort=True)
     rewards = df_change_game_names(exp['cfg'], rewards)
     return rewards
+
 
 def get_raw_parent(exp, game_idx, iterations=200):
     logdir = exp['dir']
