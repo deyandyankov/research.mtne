@@ -12,6 +12,7 @@ def rewards(exp):
     p = rewards.set_index('iteration').plot()
     p.set(ylabel='Score')
     p.set(xlabel='Epoch')
+    return p
 
 def frames_vs_score(exp, game_idx, iterations=200):
     config, rewards_eplen = exp['cfg'], exp['rewards_eplen']

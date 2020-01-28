@@ -219,11 +219,21 @@ def compute_dkl(cfg, game_idx, iteration, bin_size, epsilon, iteration_lag=-1, e
 def get_game_rewards(cfg, iterations=200):
     res = []
     for iteration in range(0, iterations):
-        game0_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir'], iteration, 'game0_rewards'))))
+        game0_rewards = get_iter_log(exp['dir'], iteration, 'game0_rewards');
+        game0_rewards0 = np.array(list(map(lambda x: x[0], game0_rewards)))
+        game0_rewards1 = np.array(list(map(lambda x: x[1], game0_rewards)))
+        game0_rewards = np.concatenate([game0_rewards0, game0_rewards1])
         if 'dir_competitor' in cfg.keys():
-            game1_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir_competitor'], iteration, 'game0_rewards'))))
+            game1_rewards = get_iter_log(exp['dir_competitor'], iteration, 'game0_rewards')
+            game1_rewards0 = np.array(list(map(lambda x: x[0], game1_rewards)))
+            game1_rewards1 = np.array(list(map(lambda x: x[1], game1_rewards)))
+            game1_rewards = np.concatenate([game1_rewards0, game1_rewards1])
         else:
-            game1_rewards = np.array(list(map(lambda x: np.mean(x), get_iter_log(cfg['dir'], iteration, 'game1_rewards'))))
+            game1_rewards = get_iter_log(exp['dir'], iteration, 'game1_rewards')
+            game1_rewards0 = np.array(list(map(lambda x: x[0], game1_rewards)))
+            game1_rewards1 = np.array(list(map(lambda x: x[1], game1_rewards)))
+            game1_rewards = np.concatenate([game1_rewards0, game1_rewards1])
+
         res.append(pd.DataFrame({'iteration': iteration, 'game0_rewards': game0_rewards, 'game1_rewards': game1_rewards}))
     return pd.concat(res)
 
@@ -234,9 +244,16 @@ def get_hypervolume_data(exp, iterations=200):
     for iteration in range(0, iterations):
         game0_rewards = get_iter_log(exp['dir'], iteration, 'game0_rewards');
         other_game_index = 'game0_rewards' if exp['cfg']['games'][0] == exp['cfg']['games'][1] else 'game1_rewards'
-        game1_rewards = get_iter_log(exp['dir'], iteration, other_game_index);
-        game0_rewards = np.array(list(map(lambda x: np.mean(x), game0_rewards)))
-        game1_rewards = np.array(list(map(lambda x: np.mean(x), game1_rewards)))
+        game1_rewards = get_iter_log(exp['dir'], iteration, other_game_index)
+        
+        game0_rewards0 = np.array(list(map(lambda x: x[0], game0_rewards)))
+        game0_rewards1 = np.array(list(map(lambda x: x[1], game0_rewards)))
+        game0_rewards = np.concatenate([game0_rewards0, game0_rewards1])
+
+        game1_rewards0 = np.array(list(map(lambda x: x[0], game1_rewards)))
+        game1_rewards1 = np.array(list(map(lambda x: x[1], game1_rewards)))
+        game1_rewards = np.concatenate([game1_rewards0, game1_rewards1])
+        
         hv_iteration = compute_hv_value(game0_rewards, game1_rewards)
         hvs.append(hv_iteration)
         mean_game0_rewards.append(game0_rewards)
@@ -255,9 +272,16 @@ def get_paretos(cfg, iterations=200):
     for iteration in range(0, iterations):
         game0_rewards = get_iter_log(cfg['dir'], iteration, 'game0_rewards');
         other_game_index = 'game0_rewards' if cfg['cfg']['games'][0] == cfg['cfg']['games'][1] else 'game1_rewards'
-        game1_rewards = get_iter_log(cfg['dir'], iteration, other_game_index);
-        game0_rewards = np.array(list(map(lambda x: np.mean(x), game0_rewards)))
-        game1_rewards = np.array(list(map(lambda x: np.mean(x), game1_rewards)))
+        game1_rewards = get_iter_log(cfg['dir'], iteration, other_game_index)
+
+        game0_rewards0 = np.array(list(map(lambda x: x[0], game0_rewards)))
+        game0_rewards1 = np.array(list(map(lambda x: x[1], game0_rewards)))
+        game0_rewards = np.concatenate([game0_rewards0, game0_rewards1])
+
+        game1_rewards0 = np.array(list(map(lambda x: x[0], game1_rewards)))
+        game1_rewards1 = np.array(list(map(lambda x: x[1], game1_rewards)))
+        game1_rewards = np.concatenate([game1_rewards0, game1_rewards1])
+
         hv_iteration = compute_hv_value(game0_rewards, game1_rewards)
         hvs.append(hv_iteration)
         mean_game0_rewards.append(game0_rewards)
