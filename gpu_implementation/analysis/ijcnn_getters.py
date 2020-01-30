@@ -83,7 +83,6 @@ def get_rewards(exp):
         df['iteration'] = [i]
         rdf = pd.DataFrame.from_dict(df)
         rewards = pd.concat([rewards, rdf], sort=True)
-    rewards = df_change_game_names(exp['cfg'], rewards)
     return rewards
 
 def get_rewards_eplen(exp):
@@ -114,6 +113,13 @@ def get_rewards_eplen(exp):
             rewards_eplen = pd.concat([rewards_eplen, edf0], sort=True)
             
     return rewards_eplen
+
+def get_igd(experiments, iterations=200):
+    df_dict = {}
+    for exp_name, exp in experiments.items():
+        df_dict[exp_name] = utils.get_igd_data(exp, iterations)
+    igd_df = pd.DataFrame.from_dict(df_dict)
+    return igd_df
 
 def get_hypervolume(experiments, rewards_or_elite='rewards', iterations=200):
     df_dict = {}
@@ -179,3 +185,38 @@ def get_raw_parent(exp, game_idx, iterations=200):
         rewards = pd.concat([rewards, rdf], sort=True)
     rewards = df_change_game_names(exp['cfg'], rewards)
     return rewards
+
+def sdr_compute_igd(v1,v2):
+    #SDR: we need to write this one
+    # It takes all the points (offspring rewards).
+    # Then it computes all the PF points for each epoch.
+    # Then, for each epoch, it calls "sdr_compute_igd_per_iteration()"
+    
+    # output: 
+    # igds_min  --> a vector with 200 elements
+    # igds_mean --> a vector with 200 elements
+    # igds_max  --> a vector with 200 elements
+    # igds_std  --> a vector with 200 elements
+    
+    return igds_min,igds_mean,igds_max,igds_std
+
+def sdr_compute_igd_per_iteration(v_x, v_y, BP):
+    #it gets three np.array([])
+    #it returns 4 values; min, mean, max, std
+    
+    dist = []
+    for k in range(len(v_x)):
+        dist.append(np.linalg.norm(np.array([v_x[k], v_y[k]]) - BP))
+    
+    igd_min =np.min(dist)
+    igd_mean = np.mean(dist)
+    igd_max = np.max(dist)
+    igd_std = np.std(dist)
+    
+    result = {
+        'min': igd_min,
+        'mean': igd_mean,
+        'max': igd_max,
+        'std': igd_std
+    }
+    return result

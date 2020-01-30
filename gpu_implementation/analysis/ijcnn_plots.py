@@ -5,17 +5,22 @@ import matplotlib.pyplot as plt
 import ijcnn_getters
 
 def save_plot(p, filename):
+    p.get_figure().savefig('ijcnn_plots/{}.pdf'.format(filename))
     p.get_figure().savefig('ijcnn_plots/{}.eps'.format(filename))
     p.get_figure().savefig('ijcnn_plots/{}.png'.format(filename))
 
 def rewards(exp):
     ### plot: Game0 and Game1 score and elite score
     config, rewards = exp['cfg'], exp['rewards']
-    sns.set(rc={'figure.figsize':(20, 10)})
-    rewards.set_index('iteration')
-    p = rewards.set_index('iteration').plot()
+    offspring = rewards.copy()
+    sns.set(rc={'figure.figsize':(8, 6)})#||SDR:changed size||#(20, 10)})
+    offspring.columns = ['Zaxxon_parent', 'Zaxxon_offspring', 'Riverraid_parent',
+       'Riverraid_offspring', 'iteration']
+    offspring.set_index('iteration')
+    p = offspring.set_index('iteration').plot()
     p.set(ylabel='Score')
     p.set(xlabel='Epoch')
+    p.set_xlim([0, 200])
     return p
 
 def frames_vs_score(exp, game_idx, iterations=200):
@@ -25,6 +30,7 @@ def frames_vs_score(exp, game_idx, iterations=200):
     df = rewards_eplen.copy().query('iteration <= ' + str(iterations))
     df['Epoch'] = df['iteration']
     p = sns.scatterplot(x='eplen', y='reward', hue='Epoch', data=df.query('game == ' + str(game_idx)))
+    #p = sns.heatmap(x='eplen', y='reward', vmin=0, vmax=1, data=df.query('game == ' + str(game_idx)))
     p.set(title=game_name + ' frames vs. score')
     p.set(ylabel='Score')
     p.set(xlabel='Number of frames')
@@ -44,7 +50,7 @@ def hypervolume(hv_df, iterations=200):
     return p
 
 def outperformer(df, iterations, title):
-    sns.set(rc={'figure.figsize': (4, 3)})
+    sns.set(rc={'figure.figsize': (8, 6)})
     sns.set_style('white')
     p = sns.lineplot(x='epoch', y='threshold_breached', data=df)
     p.set_title(title + "\n")

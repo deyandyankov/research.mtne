@@ -69,6 +69,10 @@ def compute_pareto(rewards_game0, rewards_game1):
     points_PF_x, points_PF_y = metrics.f_true_PF_points(costs)
     return points_PF_x, points_PF_y
 
+def compute_igd_value(rewards_game0, rewards_game1):
+    points_PF_x, points_PF_y = compute_pareto(rewards_game0, rewards_game1)
+    return np.random.random(200)
+    
 def compute_hv_value(rewards_game0, rewards_game1):
     points_PF_x, points_PF_y = compute_pareto(rewards_game0, rewards_game1)
     HV_value = metrics.f_computeHypervolume(np.array([points_PF_x, points_PF_y]))
@@ -236,6 +240,38 @@ def get_game_rewards(cfg, iterations=200):
 
         res.append(pd.DataFrame({'iteration': iteration, 'game0_rewards': game0_rewards, 'game1_rewards': game1_rewards}))
     return pd.concat(res)
+
+def get_igd_data(exp, prefix, iterations=200):
+    game0_key = 'game0_rewards'
+    game1_key = 'game1_rewards'
+    
+    PF_X = []
+    PF_Y = []
+    epochs = []
+    for iteration in range(0, iterations):
+        game0_rewards = get_iter_log(exp['dir'], iteration, game0_key)
+        other_game_index = game1_key # game0_key if exp['cfg']['games'][0] == exp['cfg']['games'][1] else game1_key
+        game1_rewards = get_iter_log(exp['dir'], iteration, other_game_index)
+        
+        game0_rewards0 = np.array(list(map(lambda x: x[0], game0_rewards)))
+        game0_rewards1 = np.array(list(map(lambda x: x[1], game0_rewards)))
+        game0_rewards = np.concatenate([game0_rewards0, game0_rewards1])
+
+        game1_rewards0 = np.array(list(map(lambda x: x[0], game1_rewards)))
+        game1_rewards1 = np.array(list(map(lambda x: x[1], game1_rewards)))
+        game1_rewards = np.concatenate([game1_rewards0, game1_rewards1])
+
+        pf_x, pf_y = compute_pareto(game0_rewards, game1_rewards)
+        PF_X.append(pf_x)
+        PF_Y.append(pf_y)
+        epochs.append(iteration)
+    
+    df = pd.DataFrame.from_dict({
+        'epoch': np.array(epochs),
+        prefix + '-pf_x': PF_X,
+        prefix + '-pf_y': PF_Y
+    })
+    return df
 
 def get_hypervolume_data(exp, rewards_or_elite='rewards', iterations=200):
     game0_key = 'game0_' + rewards_or_elite
