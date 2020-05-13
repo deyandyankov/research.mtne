@@ -314,6 +314,7 @@ def main(**exp):
         ####################
 
         if f_isSingleTask(exp):
+            proc_frames = compute_centered_ranks(np.asarray(game0_episode_lengths))
             proc_returns = compute_centered_ranks(game0_returns_n2)
             noise_inds_n = game0_noise_inds_n
         else:
@@ -323,11 +324,23 @@ def main(**exp):
             assert game0_noise_inds_n == game1_noise_inds_n
             noise_inds_n = game0_noise_inds_n + game1_noise_inds_n # concatenate the two lists
 
-        g, count = batched_weighted_sum(
+        g_returns, count_returns = batched_weighted_sum(
             proc_returns[:, 0] - proc_returns[:, 1],
             (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
             batch_size=500
         )
+
+        g_frames, count_frames = batched_weighted_sum(
+            proc_frames[:, 0] - proc_frames[:, 1],
+            (noise.get(idx, worker.model.num_params) for idx in noise_inds_n),
+            batch_size=500
+        )
+
+        assert count_frames == count_returns
+        count = count_returns
+
+        w = 0.9 #1.0 # 0.5 = mean
+        g = w*g_returns+(1-w)*g_frames
         # NOTE: gradients are scaled by \theta
         returns_n2 = np.array([a.rewards for a in game0_results] + [a.rewards for a in game1_results])
         g /= returns_n2.size
@@ -342,6 +355,12 @@ def main(**exp):
         ######################
         _, test_evals, test_timesteps = workers[0].monitor_eval_repeated([(state.theta, 0)], max_frames=None, num_episodes=exp['num_test_episodes']//(2**(1-f_isSingleTask(exp))))[0]
         tlogger.info("game0 elite: {}".format(np.mean(test_evals)))
+        tlogger.info("game0 elite frames max: {}".format(np.max(test_timesteps)))
+        tlogger.info("game0 elite frames mean: {}".format(np.mean(test_timesteps)))
+        tlogger.info("game0 elite frames min: {}".format(np.min(test_timesteps)))
+        tlogger.info("game0 offspring frames max: {}".format(np.max(game0_episode_lengths)))
+        tlogger.info("game0 offspring frames mean: {}".format(np.mean(game0_episode_lengths)))
+        tlogger.info("game0 offspring frames min: {}".format(np.min(game0_episode_lengths)))
         save_pickle(iteration, log_dir, 'game0_elite', test_evals)
         save_pickle(iteration, log_dir, 'game0_elite_timestemps', test_timesteps)
 
