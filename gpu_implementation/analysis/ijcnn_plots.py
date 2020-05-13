@@ -68,10 +68,13 @@ def raw_score_threshold(df, yname, threshold, iterations=200):
     p.hlines(threshold, 0, iterations) # draw threshold across 0:iterations
     return p
 
-def mmm(melted, threshold, title, iterations=200):
+def mmm(melted, threshold, title, iterations=200, ylabel='Score', ylim=None):
     sns.set(rc={'figure.figsize':(8, 5)})
-    p = sns.lineplot(x='Epoch', y='Score', data=melted.query("variable in ['min', 'max']"))
-    p.hlines(threshold, 0, iterations, linestyles='dashed') # draw threshold across 0:iterations
+    p = sns.lineplot(x='Epoch', y=ylabel, data=melted.query("variable in ['min', 'max']"))
+    if threshold is not None:
+        p.hlines(threshold, 0, iterations, linestyles='dashed') # draw threshold across 0:iterations
     p.set_xlim([0, iterations])
     p.set_title(title)
+    if ylim is not None:
+        p.set_ylim([0, ylim])
     return p
